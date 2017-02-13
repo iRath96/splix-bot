@@ -1,7 +1,7 @@
 import { PacketProperty } from "../common/Packet";
 
 
-export default class Integer extends PacketProperty<number> {
+export default class LongInteger extends PacketProperty<number> {
   constructor(
     public value: number = 0
   ) {
@@ -10,13 +10,16 @@ export default class Integer extends PacketProperty<number> {
 
   serialize() {
     return [
+      (this.value >> 24) & 255,
+      (this.value >> 16) & 255,
       (this.value >> 8) & 255,
       this.value & 255
     ];
   }
 
   deserialize(game: any, raw: number[]) {
-    this.value = raw.shift()!;
-    this.value = (raw.shift() | this.value << 8 >>> 0) >>> 0;
+    this.value = 0;
+    for (let i = 0; i < 4; ++i)
+      this.value = (raw.shift() | this.value << 8 >>> 0) >>> 0;
   }
 }

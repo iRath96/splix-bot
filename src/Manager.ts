@@ -16,12 +16,19 @@ import ServerReadyPacket from "./packets/receive/Ready";
 import PlayerPositionPacket from "./packets/receive/PlayerPosition";
 import PlayerNamePacket from "./packets/receive/PlayerName";
 import PlayerSkinPacket from "./packets/receive/PlayerSkin";
+import MyScorePacket from "./packets/receive/MyScore";
+import MyRankPacket from "./packets/receive/MyRank";
+import LeaderboardPacket from "./packets/receive/Leaderboard";
+import MapSizePacket from "./packets/receive/MapSize";
+import MinimapPacket from "./packets/receive/Minimap";
 
 import PingPacket from "./packets/send/Ping";
 import VersionPacket from "./packets/send/Version";
 import SetUsernamePacket from "./packets/send/SetUsername";
 import SkinPacket from "./packets/send/Skin";
+import RequestMyTrailPacket from "./packets/send/RequestMyTrail";
 import ReadyPacket from "./packets/send/Ready";
+import UpdateDirectionPacket from "./packets/send/UpdateDirection";
 
 
 const handler: PropertyDecorator = function (target: { constructor: typeof Manager }, property: string) {
@@ -39,6 +46,8 @@ export default class Manager {
   static handlers: [ typeof Packet, string ][] = [];
 
   public game = new Game();
+  public hasSentSecondReady = false;
+
   public socket: WebSocket;
 
   protected sendPacket(packet: Packet) {
@@ -66,7 +75,7 @@ export default class Manager {
   //
 
   protected connect() {
-    this.socket = new WebSocket("ws://46.101.194.190:8002/splix");
+    this.socket = new WebSocket("ws://207.154.207.54:8001/splix");
     
     this.socket.onopen = () => {
       this.sendHandshake("Cheese");
@@ -83,6 +92,21 @@ export default class Manager {
         console.error(e);
       }
     };
+
+    setInterval(() => {
+      this.game.loop();
+    }, 100);
+
+    setInterval(() => {
+      let player = this.game.players[0];
+      if (player && player.position) {
+        this.updateDirection(
+          (player.direction + 1) % 4,
+          player.position.x.value,
+          player.position.y.value
+        );
+      }
+    }, 300);
   }
 
   protected sendHandshake(username: string) {
@@ -91,6 +115,18 @@ export default class Manager {
     this.sendPacket(new SetUsernamePacket(username));
     this.sendPacket(new SkinPacket(0, 0));
     this.sendPacket(new ReadyPacket());
+
+    this.sendPacket(new RequestMyTrailPacket());
+  }
+
+  protected updateDirection(direction: number, x: number, y: number) {
+    let packet = new UpdateDirectionPacket();
+    packet.direction.value = direction;
+    packet.position.x.value = x;
+    packet.position.y.value = y;
+    this.sendPacket(packet);
+
+    // update local trail
   }
 
   static manage() {
@@ -104,30 +140,40 @@ export default class Manager {
 
   @handler
   protected handlePlayerDeath(packet: PlayerDeathPacket) {
-    console.log(packet);
-    //packet.player.value.die();
-  }
-
-  @handler
-  protected handleFillArea(packet: FillAreaPacket) {
-    console.log(packet);
+    packet.player.value.die();
   }
 
   @handler
   protected handlePong(packet: PongPacket) {
-    console.log("pong");
+    // console.log("pong");
+  }
+
+  @handler
+  protected handleFillArea(packet: FillAreaPacket) {
+    this.game.fillArea(
+      packet.x.value, packet.y.value,
+      packet.width.value, packet.height.value,
+      packet.color.value, packet.pattern.value
+    );
   }
 
   @handler
   protected handleChunkOfBlocks(packet: ChunkOfBlocksPacket) {
-    console.log(packet.width);
-    console.log(packet.height);
-    this.sendPacket(new ReadyPacket());
+    this.game.setChunkOfBlocks(
+      packet.x.value, packet.y.value,
+      packet.width.value, packet.height.value,
+      packet.data
+    );
+
+    if (!this.hasSentSecondReady) {
+      this.sendPacket(new ReadyPacket());
+      this.hasSentSecondReady = true;
+    }
   }
 
   @handler
   protected handleSetTrail(packet: SetTrailPacket) {
-    console.log(packet);
+    packet.player.value.trail = packet.trail;
   }
 
   @handler
@@ -149,7 +195,10 @@ export default class Manager {
 
   @handler
   protected handlePlayerPosition(packet: PlayerPositionPacket) {
-    packet.player.value.position = packet.position;
+    let player = packet.player.value;
+    player.position = packet.position;
+    player.direction = packet.direction.value;
+    player.trail.push(player.position.clone());
   }
 
   @handler
@@ -160,5 +209,30 @@ export default class Manager {
   @handler
   protected handlePlayerSkin(packet: PlayerSkinPacket) {
     packet.player.value.skin = packet.skin.value;
+  }
+
+  @handler
+  protected handleMyScore(packet: MyScorePacket) {
+    // console.log(packet);
+  }
+
+  @handler
+  protected handleMyRank(packet: MyRankPacket) {
+    // console.log(packet);
+  }
+
+  @handler
+  protected handleLeaderboard(packet: LeaderboardPacket) {
+    // console.log(packet);
+  }
+
+  @handler
+  protected handleMapSize(packet: MapSizePacket) {
+    // console.log(packet);
+  }
+
+  @handler
+  protected handleMinimap(packet: MinimapPacket) {
+    // console.log(packet);
   }
 }

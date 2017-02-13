@@ -13,6 +13,6 @@ export default class Byte extends PacketProperty<number> {
   }
 
   deserialize(game: any, raw: number[]) {
-    return this.value = raw.shift()!;
+    this.value = raw.shift()!;
   }
 }

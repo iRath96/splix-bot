@@ -9,4 +9,11 @@ export default class Position extends PacketProperty<Position> {
   get value() {
     return this;
   }
+
+  clone() {
+    let position = new Position();
+    position.x.value = this.x.value;
+    position.y.value = this.y.value;
+    return position;
+  }
 }

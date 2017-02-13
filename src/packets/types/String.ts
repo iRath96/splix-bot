@@ -49,6 +49,6 @@ export default class StringProperty extends PacketProperty<string> {
       }
     }
     
-    return this.value = b;
+    this.value = b;
   }
 }
