@@ -89,15 +89,15 @@ export default class Game {
         return;
       
       [ ...player.trail, player.position ].reduce((a, b) => {
-        drawLine(a.x.value, a.y.value, b.x.value, b.y.value, player.skin + 0x40);
+        drawLine(a.x.value, a.y.value, b.x.value, b.y.value, player.skin + 2 + 0x40);
         return b;
       });
 
-      drawDot(player.position.x.value, player.position.y.value, player.skin + 0x80);
+      drawDot(player.position.x.value, player.position.y.value, player.skin + 2 + 0x80);
     });
 
     process.stdout.write("\x1b[0;0H");
-    console.log(`render ${midX}, ${midY}`);
+    console.log(`render ${midX}, ${midY}  `);
 
     for (let yy = 0; yy <= distance * 2; ++yy) {
       for (let xx = 0; xx <= distance * 2; ++xx) {
@@ -117,10 +117,12 @@ export default class Game {
           else
             char = "o";
           
-          color = (color & 0x3F) - 2;
+          color = (block & 0x3F) - 2;
 
           if (color <= 0)
             color = 1;
+          
+          color = ((color - 1) % (colors.length - 1)) + 1;
         }
 
         process.stdout.write(`\x1b[48;5;${colors[color]}m${char}${char}`);
