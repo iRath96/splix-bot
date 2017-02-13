@@ -5,7 +5,7 @@ import Player from "../../Player";
 
 
 export default class PlayerHandle extends PacketProperty<Player> {
-  @prop protected playerId: Integer;
+  @prop protected playerId = new Integer();
 
   value: Player;
 
@@ -16,6 +16,6 @@ export default class PlayerHandle extends PacketProperty<Player> {
 
   deserialize(game: Game, raw: number[]) {
     super.deserialize(game, raw);
-    this.value = game.players[this.playerId.value];
+    this.value = game.getPlayer(this.playerId.value);
   }
 }

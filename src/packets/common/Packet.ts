@@ -51,6 +51,10 @@ export class Packet {
     let handler = (<any>this.handlers).find((handler: any) =>
       handler[0][0] === scope && handler[0][1] === packetId
     );
+
+    if (handler === undefined)
+      throw new Error(`No packet class for packet-id ${packetId}`);
+
     let packet = new handler[1]();
     packet.deserialize(game, raw);
 

@@ -4,10 +4,12 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "reflect-metadata": "^0.1.9"
+    "reflect-metadata": "^0.1.9",
+    "ws": "^2.0.3"
   },
   "devDependencies": {
     "@types/reflect-metadata": "0.0.5",
+    "@types/ws": "0.0.38",
     "typescript": "^2.1.6"
   },
   "scripts": {

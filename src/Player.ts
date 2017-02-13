@@ -1,5 +1,17 @@
+import Position from "./packets/mixins/Position";
+
+
 export default class Player {
-  id: number;
+  name: string;
+  skin: number;
+  trail: Position[];
+  position: Position;
+
+  constructor(
+    public id: number
+  ) {
+    
+  }
   
   die() {
 

@@ -3,8 +3,8 @@ import { Integer } from "../types";
 
 
 export default class Position extends PacketProperty<Position> {
-  @prop x: Integer;
-  @prop y: Integer;
+  @prop x = new Integer();
+  @prop y = new Integer();
 
   get value() {
     return this;
