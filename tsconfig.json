@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    
+    "outDir": "dist"
+  },
+  "include": [
+    "src"
+  ]
+}
