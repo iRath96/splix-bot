@@ -104,7 +104,7 @@ export default class Game {
       drawDot(player.position.x.value, player.position.y.value, player.skin + 2 + 0x80);
     });
 
-    process.stdout.write("\x1b[0;0H");
+    process.stdout.write("\x1b[2J\x1b[0;0H");
     console.log(`render ${midX}, ${midY}  `);
 
     for (let yy = 0; yy <= distance * 2; ++yy) {
@@ -143,7 +143,7 @@ export default class Game {
   }
 
   getBlock(x: number, y: number) {
-    return this.blocks[x + y * MAP_SIZE];
+    return this.blocks[Math.round(x) + Math.round(y) * MAP_SIZE];
   }
 
   getPlayer(id: number) {

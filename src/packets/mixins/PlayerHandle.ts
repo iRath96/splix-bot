@@ -1,7 +1,7 @@
 import { PacketProperty, prop } from "../common/Packet";
 import { Integer } from "../types";
-import Game from "../../Game";
-import Player from "../../Player";
+import Game from "../../common/Game";
+import Player from "../../common/Player";
 
 
 export default class PlayerHandle extends PacketProperty<Player> {

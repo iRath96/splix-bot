@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-import Game from "../../Game";
+import Game from "../../common/Game";
 import Scope from "../Scope";
 
 

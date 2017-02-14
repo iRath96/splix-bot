@@ -3,37 +3,37 @@ import { EventEmitter } from "events";
 
 import Game from "./Game";
 
-import { Packet } from "./packets/common/Packet";
-import Scope from "./packets/Scope";
+import { Packet } from "../packets/common/Packet";
+import Scope from "../packets/Scope";
 
-import PlayerDeathPacket from "./packets/receive/PlayerDeath";
-import FillAreaPacket from "./packets/receive/FillArea";
-import ChunkOfBlocksPacket from "./packets/receive/ChunkOfBlocks";
-import SetTrailPacket from "./packets/receive/SetTrail";
-import EmptyTrailPacket from "./packets/receive/EmptyTrail";
-import PongPacket from "./packets/receive/Pong";
-import RemovePlayerPacket from "./packets/receive/RemovePlayer";
-import ServerReadyPacket from "./packets/receive/Ready";
-import PlayerPositionPacket from "./packets/receive/PlayerPosition";
-import PlayerNamePacket from "./packets/receive/PlayerName";
-import PlayerSkinPacket from "./packets/receive/PlayerSkin";
-import MyScorePacket from "./packets/receive/MyScore";
-import MyRankPacket from "./packets/receive/MyRank";
-import LeaderboardPacket from "./packets/receive/Leaderboard";
-import MapSizePacket from "./packets/receive/MapSize";
-import MinimapPacket from "./packets/receive/Minimap";
-import YouDiedPacket from "./packets/receive/YouDied";
+import PlayerDeathPacket from "../packets/receive/PlayerDeath";
+import FillAreaPacket from "../packets/receive/FillArea";
+import ChunkOfBlocksPacket from "../packets/receive/ChunkOfBlocks";
+import SetTrailPacket from "../packets/receive/SetTrail";
+import EmptyTrailPacket from "../packets/receive/EmptyTrail";
+import PongPacket from "../packets/receive/Pong";
+import RemovePlayerPacket from "../packets/receive/RemovePlayer";
+import ServerReadyPacket from "../packets/receive/Ready";
+import PlayerPositionPacket from "../packets/receive/PlayerPosition";
+import PlayerNamePacket from "../packets/receive/PlayerName";
+import PlayerSkinPacket from "../packets/receive/PlayerSkin";
+import MyScorePacket from "../packets/receive/MyScore";
+import MyRankPacket from "../packets/receive/MyRank";
+import LeaderboardPacket from "../packets/receive/Leaderboard";
+import MapSizePacket from "../packets/receive/MapSize";
+import MinimapPacket from "../packets/receive/Minimap";
+import YouDiedPacket from "../packets/receive/YouDied";
 
-import PingPacket from "./packets/send/Ping";
-import VersionPacket from "./packets/send/Version";
-import SetUsernamePacket from "./packets/send/SetUsername";
-import SkinPacket from "./packets/send/Skin";
-import RequestMyTrailPacket from "./packets/send/RequestMyTrail";
-import ReadyPacket from "./packets/send/Ready";
-import UpdateDirectionPacket from "./packets/send/UpdateDirection";
+import PingPacket from "../packets/send/Ping";
+import VersionPacket from "../packets/send/Version";
+import SetUsernamePacket from "../packets/send/SetUsername";
+import SkinPacket from "../packets/send/Skin";
+import RequestMyTrailPacket from "../packets/send/RequestMyTrail";
+import ReadyPacket from "../packets/send/Ready";
+import UpdateDirectionPacket from "../packets/send/UpdateDirection";
 
 
-const handler: PropertyDecorator = function (target: { constructor: typeof Manager }, property: string) {
+const handler: PropertyDecorator = function (target: { constructor: typeof Connection }, property: string) {
   let types = Reflect.getMetadata("design:paramtypes", target, property);
 
   target.constructor.handlers.push([
@@ -43,7 +43,7 @@ const handler: PropertyDecorator = function (target: { constructor: typeof Manag
 };
 
 const PING_BUFFER_COUNT = 3;
-const PING_INTERVAL = 1000; /* ms */
+const PING_INTERVAL = 5000; /* ms */
 
 export interface IConnectionOptions {
   url: string;

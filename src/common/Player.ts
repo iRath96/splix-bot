@@ -1,4 +1,4 @@
-import Position from "./packets/mixins/Position";
+import Position from "../packets/mixins/Position";
 
 
 export default class Player {
@@ -16,12 +16,7 @@ export default class Player {
   }
 
   move(direction: number, count: number) {
-    switch (direction) {
-    case 0: this.position.x.value += count; break;
-    case 1: this.position.y.value += count; break;
-    case 2: this.position.x.value -= count; break;
-    case 3: this.position.y.value -= count; break;
-    }
+    this.position.move(direction, count);
   }
   
   die() {
