@@ -1,4 +1,5 @@
 import * as WebSocket from "ws";
+import { EventEmitter } from "events";
 
 import Game from "./Game";
 
@@ -44,12 +45,17 @@ const handler: PropertyDecorator = function (target: { constructor: typeof Manag
 const PING_BUFFER_COUNT = 3;
 const PING_INTERVAL = 1000; /* ms */
 
-export default class Manager {
+export interface IConnectionOptions {
+  url: string;
+  name: string;
+}
+
+export default class Connection extends EventEmitter {
   [key: string]: any;
 
   static handlers: [ typeof Packet, string ][] = [];
 
-  public game = new Game();
+  public readonly game = new Game();
   public hasSentSecondReady = false;
 
   public socket: WebSocket | null = null;
@@ -58,6 +64,13 @@ export default class Manager {
   public lastPings: number[] = [];
 
   protected intervals: number[] = [];
+
+  constructor(
+    public readonly options: IConnectionOptions
+  ) {
+    super();
+    this.connect();
+  }
 
   //
   // methods
@@ -77,7 +90,7 @@ export default class Manager {
   }
 
   protected handlePacket(packet: Packet) {
-    let handler = (<any>Manager.handlers).find((handler: any) =>
+    let handler = (<any>Connection.handlers).find((handler: any) =>
       handler[0] === packet.class
     );
     
@@ -94,6 +107,56 @@ export default class Manager {
   protected clearIntervals() {
     this.intervals.forEach(interval => clearInterval(interval));
     this.intervals = [];
+  }
+
+  //
+  // connecting
+  //
+
+  protected connect() {
+    this.socket = new WebSocket(this.options.url);
+    console.log(
+      `Join your bot at http://splix.io/#ip-${this.options.url.split("/")[2]}`
+    );
+    
+    this.socket.onopen = () => {
+      this.handleConnected();
+    };
+
+    this.socket.onmessage = msg => {
+      let uData = new Uint8Array(msg.data);
+      let data = (<any>Array).from(uData);
+
+      try {
+        this.recvPacket(data);
+      } catch (e) {
+        console.log("Failed to parse packet", uData);
+        console.error(e);
+      }
+    };
+  }
+
+  protected handleConnected() {
+    this.sendHandshake(this.options.name);
+    this.startPinging();
+
+    this.emit("open");
+  }
+
+  protected sendHandshake(username: string) {
+    this.sendPacket(new VersionPacket(0, 28));
+    this.sendPacket(new SetUsernamePacket(username));
+    this.sendPacket(new SkinPacket(0, 0));
+    this.sendPacket(new ReadyPacket());
+
+    this.sendPacket(new RequestMyTrailPacket());
+  }
+
+  protected disconnect() {
+    this.socket = null;
+    this.clearIntervals();
+
+    this.emit("close");
   }
 
   //
@@ -138,89 +201,36 @@ export default class Manager {
   }
 
   //
-  // methods
+  // other
   //
 
-  protected connect() {
-    this.socket = new WebSocket("ws://46.101.153.56:8001/splix");
-    console.log("http://splix.io/#ip-46.101.153.56:8001");
-    
-    this.socket.onopen = () => {
-      this.handleConnected();
-    };
-
-    this.socket.onmessage = msg => {
-      let uData = new Uint8Array(msg.data);
-      let data = (<any>Array).from(uData);
-
-      try {
-        this.recvPacket(data);
-      } catch (e) {
-        console.log("Failed to parse packet", uData);
-        console.error(e);
-      }
-    };
+  public update() {
+    this.game.loop();
   }
 
-  protected handleConnected() {
-    this.sendHandshake("Cheese");
-    this.startPinging();
-
-    setInterval(() => {
-      this.game.loop();
-    }, 100);
-
-    let seq = [ 15, 4, 12, 4 ];
-    let seqI = 0;
-    let i = 0;
-
-    setInterval(() => {
-      if (i > 0) {
-        --i;
-        return;
-      }
-
-      i = seq[seqI++];
-      seqI = seqI % seq.length;
-      
-      let player = this.game.players[0];
-      if (player && player.position) {
-        this.updateDirection(
-          (player.direction + 1) % 4,
-          player.position.x.value,
-          player.position.y.value
-        );
-      }
-    }, 160);
+  public render() {
+    let player = this.game.ownPlayer;
+    if (player && player.position) {
+      this.game.render(player.position.x.value, player.position.y.value, 16);
+    }
   }
 
-  protected sendHandshake(username: string) {
-    this.sendPacket(new VersionPacket(0, 28));
-    this.sendPacket(new SetUsernamePacket(username));
-    this.sendPacket(new SkinPacket(0, 0));
-    this.sendPacket(new ReadyPacket());
-
-    this.sendPacket(new RequestMyTrailPacket());
-  }
-
-  protected disconnect() {
-    this.socket = null;
-    this.clearIntervals();
-  }
-
-  protected updateDirection(direction: number, x: number, y: number) {
+  public sendUpdateDirection(direction: number, x: number, y: number) {
     let packet = new UpdateDirectionPacket();
     packet.direction.value = direction;
     packet.position.x.value = x;
     packet.position.y.value = y;
     this.sendPacket(packet);
 
-    // update local trail
-  }
+    let player = this.game.ownPlayer;
+    if (player) {
+      player.direction = direction;
+      player.position.x.value = x;
+      player.position.y.value = y;
+      player.lastPositionUpdate = new Date();
+    }
 
-  static manage() {
-    let m = new Manager();
-    m.connect();
+    // update local trail?
   }
 
   //
@@ -285,6 +295,7 @@ export default class Manager {
     player.trail.push(player.position.clone());
 
     player.move(player.direction, this.game.speed * this.averagePing / 2);
+    player.lastPositionUpdate = new Date();
   }
 
   @handler
@@ -324,7 +335,6 @@ export default class Manager {
 
   @handler
   protected handleDeath(packet: YouDiedPacket) {
-    console.log(packet);
-    process.exit();
+    this.disconnect();
   }
 }

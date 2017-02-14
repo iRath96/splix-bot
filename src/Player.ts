@@ -6,6 +6,7 @@ export default class Player {
   skin: number;
   trail: Position[] = [];
   position: Position; // @todo Do not use the PacketProperty directly
+  lastPositionUpdate: Date;
   direction: number;
 
   constructor(

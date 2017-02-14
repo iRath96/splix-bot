@@ -34,6 +34,12 @@ export default class Game {
     this.blocks = new Uint8Array(MAP_SIZE * MAP_SIZE);
   }
 
+  get ownPlayer() {
+    if (this.players.hasOwnProperty("0"))
+      return this.players[0];
+    return null;
+  }
+
   render(midX: number, midY: number, distance: number) {
     midX = Math.floor(midX);
     midY = Math.floor(midY);
@@ -186,22 +192,16 @@ export default class Game {
 
   loop() {
     let timestamp = new Date().getTime();
-    let deltaTime = timestamp - this.lastUpdate;
+    // let deltaTime = timestamp - this.lastUpdate;
 
     Object.keys(this.players).forEach(key => {
       let player = this.players[<any>key];
-      player.move(player.direction, deltaTime * GLOBAL_SPEED);
+      let playerDeltaTime = timestamp - player.lastPositionUpdate.getTime();
+      
+      player.move(player.direction, playerDeltaTime * GLOBAL_SPEED);
+      player.lastPositionUpdate = new Date();
     })
 
     this.lastUpdate = timestamp;
-
-    //
-    // render
-    //
-
-    if (this.players.hasOwnProperty("0") && this.players[0].position) {
-      let pos = this.players[0].position;
-      this.render(pos.x.value, pos.y.value, 16);
-    }
   }
 }
