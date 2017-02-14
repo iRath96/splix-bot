@@ -21,6 +21,7 @@ import MyRankPacket from "./packets/receive/MyRank";
 import LeaderboardPacket from "./packets/receive/Leaderboard";
 import MapSizePacket from "./packets/receive/MapSize";
 import MinimapPacket from "./packets/receive/Minimap";
+import YouDiedPacket from "./packets/receive/YouDied";
 
 import PingPacket from "./packets/send/Ping";
 import VersionPacket from "./packets/send/Version";
@@ -40,6 +41,9 @@ const handler: PropertyDecorator = function (target: { constructor: typeof Manag
   ]);
 };
 
+const PING_BUFFER_COUNT = 3;
+const PING_INTERVAL = 1000; /* ms */
+
 export default class Manager {
   [key: string]: any;
 
@@ -48,10 +52,23 @@ export default class Manager {
   public game = new Game();
   public hasSentSecondReady = false;
 
-  public socket: WebSocket;
+  public socket: WebSocket | null = null;
+
+  public pendingPing: Date | null = null;
+  public lastPings: number[] = [];
+
+  protected intervals: number[] = [];
+
+  //
+  // methods
+  //
+
+  get isConnected() {
+    return this.socket !== null;
+  }
 
   protected sendPacket(packet: Packet) {
-    this.socket.send(new Uint8Array(packet.serialize()));
+    this.socket!.send(new Uint8Array(packet.serialize()));
   }
 
   protected recvPacket(raw: number[]) {
@@ -70,15 +87,66 @@ export default class Manager {
     this[handler![1]](packet);
   }
 
+  protected setInterval(handler: Function, timeout: number) {
+    this.intervals.push(setInterval(handler, timeout));
+  }
+
+  protected clearIntervals() {
+    this.intervals.forEach(interval => clearInterval(interval));
+    this.intervals = [];
+  }
+
+  //
+  // pings
+  //
+
+  /**
+   * Average roundtrip time.
+   */
+  get averagePing() {
+    if (this.lastPings.length === 0)
+      return 0;
+    return this.lastPings.reduce((sum, a) => sum + a) / this.lastPings.length;
+  }
+
+  protected startPinging() {
+    this.setInterval(() => {
+      this.sendPing();
+    }, PING_INTERVAL);
+  }
+
+  protected sendPing() {
+    if (this.pendingPing !== null)
+      return;
+    
+    this.sendPacket(new PingPacket());
+    this.pendingPing = new Date();
+  }
+
+  @handler
+  protected handlePong(packet: PongPacket) {
+    if (this.pendingPing === null)
+      return;
+    
+    let delay = new Date().getTime() - this.pendingPing.getTime();
+    this.lastPings.push(delay);
+
+    while (this.lastPings.length > PING_BUFFER_COUNT)
+      this.lastPings.shift();
+
+    this.pendingPing = null;
+  }
+
   //
   // methods
   //
 
   protected connect() {
-    this.socket = new WebSocket("ws://207.154.207.54:8001/splix");
+    this.socket = new WebSocket("ws://46.101.153.56:8001/splix");
+    console.log("http://splix.io/#ip-46.101.153.56:8001");
     
     this.socket.onopen = () => {
-      this.sendHandshake("Cheese");
+      this.handleConnected();
     };
 
     this.socket.onmessage = msg => {
@@ -92,12 +160,29 @@ export default class Manager {
         console.error(e);
       }
     };
+  }
+
+  protected handleConnected() {
+    this.sendHandshake("Cheese");
+    this.startPinging();
 
     setInterval(() => {
       this.game.loop();
     }, 100);
 
+    let seq = [ 15, 4, 12, 4 ];
+    let seqI = 0;
+    let i = 0;
+
     setInterval(() => {
+      if (i > 0) {
+        --i;
+        return;
+      }
+
+      i = seq[seqI++];
+      seqI = seqI % seq.length;
+      
       let player = this.game.players[0];
       if (player && player.position) {
         this.updateDirection(
@@ -106,17 +191,21 @@ export default class Manager {
           player.position.y.value
         );
       }
-    }, 300);
+    }, 160);
   }
 
   protected sendHandshake(username: string) {
-    this.sendPacket(new PingPacket());
     this.sendPacket(new VersionPacket(0, 28));
     this.sendPacket(new SetUsernamePacket(username));
     this.sendPacket(new SkinPacket(0, 0));
     this.sendPacket(new ReadyPacket());
 
     this.sendPacket(new RequestMyTrailPacket());
+  }
+
+  protected disconnect() {
+    this.socket = null;
+    this.clearIntervals();
   }
 
   protected updateDirection(direction: number, x: number, y: number) {
@@ -141,11 +230,6 @@ export default class Manager {
   @handler
   protected handlePlayerDeath(packet: PlayerDeathPacket) {
     packet.player.value.die();
-  }
-
-  @handler
-  protected handlePong(packet: PongPacket) {
-    // console.log("pong");
   }
 
   @handler
@@ -199,6 +283,8 @@ export default class Manager {
     player.position = packet.position;
     player.direction = packet.direction.value;
     player.trail.push(player.position.clone());
+
+    player.move(player.direction, this.game.speed * this.averagePing / 2);
   }
 
   @handler
@@ -234,5 +320,11 @@ export default class Manager {
   @handler
   protected handleMinimap(packet: MinimapPacket) {
     // console.log(packet);
+  }
+
+  @handler
+  protected handleDeath(packet: YouDiedPacket) {
+    console.log(packet);
+    process.exit();
   }
 }

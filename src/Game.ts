@@ -2,7 +2,7 @@ import Player from "./Player";
 
 
 const MAP_SIZE = 600;
-const GLOBAL_SPEED = 0.006;
+const GLOBAL_SPEED = 0.006; /* blocks per millisecond */
 
 const colors = [
   16, // black
@@ -23,6 +23,8 @@ const colors = [
 ];
 
 export default class Game {
+  readonly speed: number = GLOBAL_SPEED;
+
   blocks: Uint8Array;
   players: { [id: number]: Player } = {};
 
@@ -119,10 +121,10 @@ export default class Game {
           
           color = (block & 0x3F) - 2;
 
-          if (color <= 0)
-            color = 1;
+          if (color < 0)
+            color = 0;
           
-          color = ((color - 1) % (colors.length - 1)) + 1;
+          color = (color % (colors.length - 1)) + 1;
         }
 
         process.stdout.write(`\x1b[48;5;${colors[color]}m${char}${char}`);
@@ -199,7 +201,7 @@ export default class Game {
 
     if (this.players.hasOwnProperty("0") && this.players[0].position) {
       let pos = this.players[0].position;
-      this.render(pos.x.value, pos.y.value, 8);
+      this.render(pos.x.value, pos.y.value, 16);
     }
   }
 }
