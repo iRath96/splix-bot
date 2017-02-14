@@ -113,16 +113,22 @@ connection.addListener("open", () => {
       return;
     }
 
-    console.log(`unsafe state`);
+    if (state === BotState.ADVANCING) {
+      ++returnDistance;
+      return;
+    }
 
-    if (state === BotState.SAFE) {
+    let onUnsafe = lookaheadUnsafety(connection, player, 0);
+    if (state === BotState.SAFE && onUnsafe) {
       // was safe, now isn't anymore
 
       state = BotState.ADVANCING;
       returnDistance = 0;
+
+      return;
     }
 
-    ++returnDistance;
+    console.log(`idle state`);
   }, 167);
 });
 
