@@ -196,6 +196,9 @@ export default class Game {
 
     Object.keys(this.players).forEach(key => {
       let player = this.players[<any>key];
+      if (!player.position)
+        return;
+
       let playerDeltaTime = timestamp - player.lastPositionUpdate.getTime();
       
       player.move(player.direction, playerDeltaTime * GLOBAL_SPEED);

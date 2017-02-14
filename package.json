@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
+    "keypress": "^0.2.1",
     "reflect-metadata": "^0.1.9",
     "ws": "^2.0.3"
   },

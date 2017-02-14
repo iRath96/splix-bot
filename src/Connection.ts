@@ -215,6 +215,18 @@ export default class Connection extends EventEmitter {
     }
   }
 
+  public updateDirection(direction: number) {
+    let player = this.game.ownPlayer;
+    if (!player)
+      return;
+
+    this.sendUpdateDirection(
+      direction,
+      player.position.x.value,
+      player.position.y.value
+    );
+  }
+
   public sendUpdateDirection(direction: number, x: number, y: number) {
     let packet = new UpdateDirectionPacket();
     packet.direction.value = direction;
@@ -272,7 +284,7 @@ export default class Connection extends EventEmitter {
 
   @handler
   protected handleReady(packet: ServerReadyPacket) {
-    console.log(packet);
+    // console.log(packet);
   }
 
   @handler
