@@ -1,10 +1,22 @@
 import Connection from "./common/Connection";
 import Player from "./common/Player";
 
+function lookaheadUnsafety(connection: Connection, player: Player, maxLookahead = 8) {
+  let position = player.position.clone();
+  for (let lookahead = 0; lookahead <= maxLookahead; ++lookahead) {
+    if (connection.game.getBlock(position.x, position.y) !== player.skin + 2)
+      // safe
+      return true;
+    position.move(player.direction, 1);
+  }
+
+  return false;
+}
+
 function lookaheadSafety(connection: Connection, player: Player, maxLookahead = 8) {
   let position = player.position.clone();
-  for (let lookahead = 0; lookahead < maxLookahead; ++lookahead) {
-    if (connection.game.getBlock(position.x.value, position.y.value) === player.skin + 2)
+  for (let lookahead = 0; lookahead <= maxLookahead; ++lookahead) {
+    if (connection.game.getBlock(position.x, position.y) === player.skin + 2)
       // safe
       return true;
     position.move(player.direction, 1);
@@ -18,78 +30,104 @@ let connection = new Connection({
   name: "Cheese"
 });
 
-interface QueueItem {
-  delay: number;
-  handler: Function;
+enum BotState {
+  SAFE = 0,
+  ADVANCING = 1,
+  PRE_RETURN = 2,
+  RETURNING = 3
 }
 
 connection.addListener("open", () => {
-  let queue: QueueItem[] = [];
+  let returnDistance = 0;
+
+  let state = BotState.SAFE;
 
   setInterval(() => {
     connection.update();
     connection.render();
 
-    console.log("update");
+    console.log(`update (${BotState[state]}); ping ${Math.round(connection.averagePing)} ms`);
 
     // do queue
 
     let player = connection.game.ownPlayer;
     if (!player)
       return;
+    
+    let distanceToOthers = Math.floor(connection.game.getEstimatedTrailDistanceToOthers());
+    console.log(`distance to others: ${distanceToOthers} (rd: ${returnDistance})`);
 
-    if (lookaheadSafety(connection, player)) {
-      queue = [];
-      console.log(`safety ahead`);
+    let unsafeAhead = lookaheadUnsafety(connection, player, 4);
+
+    if (!unsafeAhead) {
+      state = BotState.SAFE;
+      console.log(`safe mode`);
+      
+      if (Math.random() > 0.95)
+        connection.updateDirection((player!.direction + 3) % 4);
+      
       return;
     }
 
-    console.log(`queue: ${queue.length}`);
-
-    while (queue.length > 0) {
-      let queuedItem = queue[0];
-      
-      if (queuedItem.delay <= 0) {
-        queuedItem.handler();
-        queue.shift();
-      } else {
-        --queuedItem.delay;
-        return;
-      }
+    let onSafe = lookaheadSafety(connection, player, 0);
+    if (onSafe && unsafeAhead && distanceToOthers <= 4) {
+      console.log(`unsafe edge, trying to turn`);
+      connection.updateDirection((player!.direction + 1) % 4);
+      return;
     }
 
-    // do idle thread
+    if (lookaheadSafety(connection, player, Math.floor(distanceToOthers * 0.9))) {
+      state = BotState.SAFE;
+      console.log(`safety ahead`);
 
-    console.log(`panic thread; ping ${connection.averagePing} ms`);
+      if (returnDistance > 0)
+        --returnDistance;
 
-    if (Math.random() > 0.5) {
-      queue.push({
-        delay: 0,
-        handler: () => {
-          connection.updateDirection((player!.direction + 1) % 4);
-        }
-      });
+      return;
     }
 
-    queue.push({
-      delay: 2,
-      handler: () => {
-        connection.updateDirection((player!.direction + 1) % 4);
-      }
-    });
+    if (state === BotState.PRE_RETURN) {
+      console.log(`doing turn`);
 
-    queue.push({
-      delay: 4,
-      handler: () => {
-        connection.updateDirection((player!.direction + 1) % 4);
-      }
-    });
+      connection.updateDirection((player!.direction + 1) % 4);
+      state = BotState.RETURNING;
 
-    queue.push({
-      delay: 6,
-      handler: () => {}
-    });
-  }, 160);
+      return;
+    }
+
+    if (
+      state === BotState.ADVANCING &&
+      returnDistance > distanceToOthers - 8
+    ) {
+      console.log(`returning`);
+
+      connection.updateDirection((player!.direction + 1) % 4);
+      state = BotState.PRE_RETURN;
+
+      return;
+    }
+
+    if (state === BotState.RETURNING) {
+      console.log(`returning`);
+      --returnDistance;
+      return;
+    }
+
+    console.log(`unsafe state`);
+
+    if (state === BotState.SAFE) {
+      // was safe, now isn't anymore
+
+      state = BotState.ADVANCING;
+      returnDistance = 0;
+    }
+
+    ++returnDistance;
+  }, 167);
+});
+
+connection.addListener("death", () => {
+  console.log("dammit");
 });
 
 connection.addListener("close", () => {

@@ -130,8 +130,8 @@ export default class Connection extends EventEmitter {
       try {
         this.recvPacket(data);
       } catch (e) {
-        console.log("Failed to parse packet", uData);
-        console.error(e);
+        // console.log("Failed to parse packet", uData);
+        // console.error(e);
       }
     };
   }
@@ -211,7 +211,7 @@ export default class Connection extends EventEmitter {
   public render() {
     let player = this.game.ownPlayer;
     if (player && player.position) {
-      this.game.render(player.position.x.value, player.position.y.value, 16);
+      this.game.render(player.position.x, player.position.y, 16);
     }
   }
 
@@ -222,8 +222,8 @@ export default class Connection extends EventEmitter {
 
     this.sendUpdateDirection(
       direction,
-      player.position.x.value,
-      player.position.y.value
+      player.position.x,
+      player.position.y
     );
   }
 
@@ -237,8 +237,8 @@ export default class Connection extends EventEmitter {
     let player = this.game.ownPlayer;
     if (player) {
       player.direction = direction;
-      player.position.x.value = x;
-      player.position.y.value = y;
+      player.position.x = x;
+      player.position.y = y;
       player.lastPositionUpdate = new Date();
     }
 
@@ -279,7 +279,7 @@ export default class Connection extends EventEmitter {
 
   @handler
   protected handleSetTrail(packet: SetTrailPacket) {
-    packet.player.value.trail = packet.trail;
+    packet.player.value.trail = packet.trail.map(p => p.value);
   }
 
   @handler
@@ -291,7 +291,7 @@ export default class Connection extends EventEmitter {
   protected handleEmptyTrail(packet: EmptyTrailPacket) {
     packet.player.value.trail = [];
     if (packet.lastPosition !== null)
-      packet.player.value.position = packet.lastPosition;
+      packet.player.value.position = packet.lastPosition.value;
   }
 
   @handler
@@ -302,9 +302,11 @@ export default class Connection extends EventEmitter {
   @handler
   protected handlePlayerPosition(packet: PlayerPositionPacket) {
     let player = packet.player.value;
-    player.position = packet.position;
+    player.position = packet.position.value;
     player.direction = packet.direction.value;
-    player.trail.push(player.position.clone());
+    
+    if (player.trail.length > 0)
+      player.trail.push(player.position.clone());
 
     player.move(player.direction, this.game.speed * this.averagePing / 2);
     player.lastPositionUpdate = new Date();
@@ -347,6 +349,7 @@ export default class Connection extends EventEmitter {
 
   @handler
   protected handleDeath(packet: YouDiedPacket) {
+    this.emit("death");
     this.disconnect();
   }
 }

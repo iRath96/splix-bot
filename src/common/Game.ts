@@ -97,11 +97,11 @@ export default class Game {
         return;
       
       [ ...player.trail, player.position ].reduce((a, b) => {
-        drawLine(a.x.value, a.y.value, b.x.value, b.y.value, player.skin + 2 + 0x40);
+        drawLine(a.x, a.y, b.x, b.y, player.skin + 2 + 0x40);
         return b;
       });
 
-      drawDot(player.position.x.value, player.position.y.value, player.skin + 2 + 0x80);
+      drawDot(player.position.x, player.position.y, player.skin + 2 + 0x80);
     });
 
     process.stdout.write("\x1b[2J\x1b[0;0H");
@@ -150,6 +150,32 @@ export default class Game {
     if (!this.players.hasOwnProperty(String(id)))
       this.players[id] = new Player(id);
     return this.players[id];
+  }
+
+  getMaxTrailDistanceToOthers(maxDistance: number = 40) {
+    let player = this.ownPlayer!;
+    let distances = [ ...player.trail, player.position ]
+      .map(point => maxDistance - point.manhattenDistance(player.position));
+    return Math.min(...distances);
+  }
+
+  getEstimatedTrailDistanceToOthers() {
+    return Math.min(
+      this.trailDistanceToOthers,
+      this.getMaxTrailDistanceToOthers()
+    );
+  }
+
+  get trailDistanceToOthers() {
+    let player = this.ownPlayer!;
+    return Object.keys(this.players)
+      .filter(key => key !== "0")
+      .map(key => {
+        let other = this.players[<any>key];
+        return player.trailDistance(other);
+      })
+      .sort((a, b) => a - b)
+      [0] || Infinity;
   }
 
   removePlayer(player: Player) {

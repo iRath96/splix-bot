@@ -1,28 +1,24 @@
 import { PacketProperty, prop } from "../common/Packet";
 import { Integer } from "../types";
 
+import Vector from "../../common/Vector";
 
-export default class Position extends PacketProperty<Position> {
+
+export default class Position extends PacketProperty<Vector> {
   @prop x = new Integer();
   @prop y = new Integer();
 
-  get value() {
-    return this;
+  value = new Vector();
+
+  serialize() {
+    this.x.value = this.value.x;
+    this.y.value = this.value.y;
+    return super.serialize();
   }
 
-  clone() {
-    let position = new Position();
-    position.x.value = this.x.value;
-    position.y.value = this.y.value;
-    return position;
-  }
-
-  move(direction: number, count: number) {
-    switch (direction) {
-    case 0: this.x.value += count; break;
-    case 1: this.y.value += count; break;
-    case 2: this.x.value -= count; break;
-    case 3: this.y.value -= count; break;
-    }
+  deserialize(game: any, raw: number[]) {
+    super.deserialize(game, raw);
+    this.value.x = this.x.value;
+    this.value.y = this.y.value;
   }
 }
