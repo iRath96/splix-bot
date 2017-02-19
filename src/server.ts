@@ -13,6 +13,8 @@ import PlayerNamePacket from "./packets/server/PlayerName";
 import PlayerSkinPacket from "./packets/server/PlayerSkin";
 import SetTrailPacket from "./packets/server/SetTrail";
 import ServerReadyPacket from "./packets/server/Ready";
+import FillAreaPacket from "./packets/server/FillArea";
+import RemovePlayerPacket from "./packets/server/RemovePlayer";
 
 import PingPacket from "./packets/client/Ping";
 import VersionPacket from "./packets/client/Version";
@@ -58,6 +60,14 @@ class Player {
   constructor(
     public readonly socket: WebSocket
   ) {
+  }
+
+  updatePosition() {
+    let now = new Date();
+    let deltaTime = now.getTime() - this.lastPositionUpdate.getTime();
+
+    this.position.move(this.direction, GLOBAL_SPEED * deltaTime);
+    this.lastPositionUpdate = now;
   }
 
   sendPacket(packet: Packet) {
@@ -118,25 +128,13 @@ class Player {
 
   protected readonly knownChunks = new Set<Chunk>();
   sendChunkUpdates() {
-    console.log(`User in chunk ${this.chunk.x},${this.chunk.y}`);
-    console.log(`User at pos ${this.position.x},${this.position.y}`);
-
     this.chunk.neighbors.forEach(chunk => {
       if (this.knownChunks.has(chunk))
         return;
       
       // the chunk is new to the player, send it to the player
       console.log(`Sending chunk ${chunk.x},${chunk.y} to user`);
-      this.sendPacket(
-        new ChunkOfBlocksPacket(
-          chunk.x * CHUNK_SIZE,
-          chunk.y * CHUNK_SIZE,
-          CHUNK_SIZE,
-          CHUNK_SIZE,
-          [ ...chunk.playerIds.values() ]
-        )
-      );
-      this.knownChunks.add(chunk);
+      this.sendChunk(chunk);
     });
 
     this.knownChunks.forEach(chunk => {
@@ -146,6 +144,24 @@ class Player {
       // the player cannot see this chunk anymore, forget about it
       this.knownChunks.delete(chunk);
     });
+  }
+  
+  sendChunk(chunk: Chunk) {
+    this.sendPacket(
+      new ChunkOfBlocksPacket(
+        chunk.x * CHUNK_SIZE,
+        chunk.y * CHUNK_SIZE,
+        CHUNK_SIZE,
+        CHUNK_SIZE,
+        chunk.colors
+      )
+    );
+
+    this.knownChunks.add(chunk);
+  }
+
+  canSeeChunk(chunk: Chunk) {
+    return this.chunk.neighbors.has(chunk);
   }
 
   protected readonly knownPlayers = new Set<Player>();
@@ -165,7 +181,7 @@ class Player {
         );
 
         this.sendPacket(
-          new PlayerSkinPacket(other.idFor(this), other.pattern) // @todo Is this correct?
+          new PlayerSkinPacket(other.idFor(this), other.color) // @todo Is this correct?
         );
 
         this.knownPlayers.add(other);
@@ -194,6 +210,13 @@ class Player {
   knowsOtherPlayer(other: Player) {
     return this.knownPlayers.has(other);
   }
+
+  removeOtherPlayer(other: Player) {
+    this.knownPlayers.delete(other);
+    this.sendPacket(
+      new RemovePlayerPacket(other.id)
+    );
+  }
 }
 
 const MAP_SIZE = 600;
@@ -210,30 +233,57 @@ class Chunk {
   get x() { return this.id % CHUNKS_PER_DIMENSION; }
   get y() { return ~~(this.id / CHUNKS_PER_DIMENSION); }
 
+  get colors() {
+    return [ ...this.playerIds.values() ].map(playerId =>
+      playerId < 2 ? playerId : this.game.players.get(playerId)!.color + 2
+    );
+  }
+
   getChunkDistance(other: Chunk) {
     return Math.max(Math.abs(other.x - this.x), Math.abs(other.y - this.y));
   }
 
   constructor(
+    public readonly game: Game,
     public readonly id: TChunkId
   ) {
     for (let i = 0; i < this.playerIds.length; ++i)
-      this.playerIds[i] = Math.floor(Math.random() * 10);
+      this.playerIds[i] = 1;
+  }
+
+  fillArea(player: Player, x: number, y: number, width: number, height: number) {
+    // console.log(`fillArea ${x},${y};${width},${height}`);
+    for (let xx = x; xx < x + width; ++xx)
+      for (let yy = y; yy < y + height; ++yy)
+        this.playerIds[x + y * CHUNK_SIZE] = player.id;
+  }
+
+  removePlayer(player: Player) {
+    let wasUpdated = false;
+    for (let i = 0; i < this.playerIds.length; ++i)
+      if (this.playerIds[i] === player.id) {
+        this.playerIds[i] = 1;
+        wasUpdated = true;
+      }
+    
+    return wasUpdated;
   }
 }
 
 const GLOBAL_SPEED = 0.006;
 class Game {
-  players: Player[] = [];
-  chunks: Chunk[] = [];
+  players = new Map<TPlayerId, Player>();
+  chunks = new Map<TChunkId, Chunk>();
 
-  idCounter: TPlayerId = 0;
+  idCounter: TPlayerId = 2;
   freeIds = new Set<TPlayerId>();
 
   constructor() {
     for (let i = 0, j = CHUNKS_PER_DIMENSION * CHUNKS_PER_DIMENSION; i < j; ++i)
-      this.chunks.push(new Chunk(i));
+      this.chunks.set(i, new Chunk(this, i));
     
+    // set neighbors for chunks
+
     this.chunks.forEach(chunk => {
       this.chunks.forEach(other => {
         if (other.id < chunk.id)
@@ -249,34 +299,96 @@ class Game {
     });
   }
 
-  createPlayerId() {
+  fillArea(player: Player, x: number, y: number, width: number, height: number) {
+    // console.log(`large fillArea: ${x},${y};${width},${height}`);
+    let cxMin = Math.floor(x / CHUNK_SIZE);
+    let cxMax = Math.floor((x + width - 1) / CHUNK_SIZE);
+    let cyMin = Math.floor(y / CHUNK_SIZE);
+    let cyMax = Math.floor((y + height - 1) / CHUNK_SIZE);
+
+    let players = new Set<Player>();
+
+    for (let cx = cxMin; cx <= cxMax; ++cx)
+      for (let cy = cyMin; cy <= cyMax; ++cy) {
+        let chunk = this.chunks.get(cx + cy * CHUNKS_PER_DIMENSION)!;
+        this.players.forEach(player => {
+          if (player.canSeeChunk(chunk))
+            players.add(player);
+        });
+
+        let lx = Math.max(x - cx * CHUNK_SIZE, 0);
+        let ly = Math.max(y - cy * CHUNK_SIZE, 0);
+
+        chunk.fillArea(
+          player,
+          lx,
+          ly,
+          Math.min(x + width - cx * CHUNK_SIZE, CHUNK_SIZE) - lx,
+          Math.min(y + height - cy * CHUNK_SIZE, CHUNK_SIZE) - ly
+        );
+      }
+    
+    players.forEach(player =>
+      player.sendPacket(
+        new FillAreaPacket(x, y, width, height, player.color + 2, player.pattern)
+      )
+    );
+
+    players.forEach(player => {
+      console.log(player.username);
+    });
+  }
+
+  protected createPlayerId() {
     if (this.freeIds.size > 0) {
       let id = this.freeIds.values().next().value;
       this.freeIds.delete(id);
       return id;
     }
 
-    return ++this.idCounter;
+    return this.idCounter++;
   }
 
-  freePlayerId(id: TPlayerId) {
+  addPlayer(player: Player) {
+    player.id = this.createPlayerId();
+    this.players.set(player.id, player);
+  }
+
+  protected freePlayerId(id: TPlayerId) {
     this.freeIds.add(id);
+  }
+
+  removePlayer(player: Player) {
+    // remove from game
+    this.players.delete(player.id);
+    this.freePlayerId(player.id);
+
+    // remove from other players
+    this.players.forEach(other => {
+      if (other.knowsOtherPlayer(player))
+        other.removeOtherPlayer(player);
+    });
+
+    // remove from all chunks
+    this.chunks.forEach(chunk => {
+      if (chunk.removePlayer(player))
+        // chunk was updated
+        this.players.forEach(other => {
+          if (other.canSeeChunk(chunk))
+            other.sendChunk(chunk);
+        });
+    });
   }
 
   chunkForPosition(x: number, y: number) {
     let id = ~~(x / CHUNK_SIZE) + ~~(y / CHUNK_SIZE) * CHUNKS_PER_DIMENSION;
-    return this.chunks[id];
+    return this.chunks.get(id)!;
   }
 
   loop() {
-    let now = new Date();
     this.players.forEach(player => {
       // update player position
-      let deltaTime = now.getTime() - player.lastPositionUpdate.getTime();
-      player.position.move(player.direction, deltaTime * GLOBAL_SPEED);
-      player.lastPositionUpdate = now;
-
-      console.log(`${player.position.x}, ${player.position.y}`);
+      player.updatePosition();
       player.setChunk(this.chunkForPosition(player.position.x, player.position.y));
     });
 
@@ -341,9 +453,8 @@ export class Server extends EventEmitter {
 
     client.on("close", () => {
       if (player.id !== undefined) {
-        // @todo
-        this.game.players = this.game.players.filter(p => p !== player);
-        this.game.freePlayerId(player.id);
+        console.log(`Removing player ${player.username}`);
+        this.game.removePlayer(player);
       }
     });
   }
@@ -388,26 +499,28 @@ export class Server extends EventEmitter {
   protected handleSkin(player: Player, packet: SkinPacket) {
     player.color = packet.color.value;
     player.pattern = packet.pattern.value;
+
+    if (player.color === 0)
+      player.color = Math.floor(Math.random() * 10); // @todo
   }
 
   @handler
   protected handleReady(player: Player, packet: ReadyPacket) {
     if (player.state === PlayerState.NEW) {
-      // 1. allocate area for player and send FillPacket
-      // @todo
-      player.position = new Vector(300, 300);
+      // allocate area for player and send FillPacket
+      player.position = new Vector(Math.floor(300 + Math.random() * 20), 300);
       player.lastPositionUpdate = new Date();
       player.setChunk(this.game.chunkForPosition(player.position.x, player.position.y));
 
-      // 2. send chunks of surrounding blocks
+      // send chunks of surrounding blocks
       player.sendChunkUpdates();
 
       // update state
       player.state = PlayerState.READY;
 
       // add to game
-      player.id = this.game.createPlayerId();
-      this.game.players.push(player);
+      this.game.addPlayer(player);
+      this.game.fillArea(player, player.position.x - 2, player.position.y - 2, 5, 5);
     } else if (player.state === PlayerState.READY) {
       player.sendPlayerUpdate(player);
       player.sendPacket(
@@ -428,27 +541,36 @@ export class Server extends EventEmitter {
 
   @handler
   protected handleDirectionUpdate(player: Player, packet: UpdateDirectionPacket) {
-    if (packet.direction.value < 0 || packet.direction.value > 3)
-      throw new Error("Invalid direction");
+    try {
+      player.updatePosition();
 
-    let distanceSinceTurn = player.position.distanceInDirection(packet.position.value, player.direction);
-    if (distanceSinceTurn < 0)
-      throw new Error("Turn in the future");
-    
-    if (distanceSinceTurn > 1)
-      throw new Error("Turn to long ago");
-    
-    // update direction
-    player.position.move(player.direction, -distanceSinceTurn);
-    player.setDirection(packet.direction.value);
-    player.position.move(player.direction, distanceSinceTurn);
+      if (packet.direction.value < 0 || packet.direction.value > 3)
+        throw new Error("Invalid direction");
 
-    console.log(`Turn accepted`);
+      let distanceSinceTurn = player.position.distanceInDirection(packet.position.value, player.direction);
+      console.log(distanceSinceTurn);
+      if (distanceSinceTurn < -2)
+        throw new Error("Turn in the future");
+      
+      if (distanceSinceTurn > 2)
+        throw new Error("Turn to long ago");
+      
+      // update direction
+      player.position.move(player.direction, -distanceSinceTurn);
+      player.setDirection(packet.direction.value);
+      player.position.move(player.direction, distanceSinceTurn);
 
-    // notify players about the direction update
-    this.game.players.forEach(other => {
-      other.sendPlayerUpdate(player);
-    });
+      console.log(`Turn accepted`);
+
+      // notify players about the direction update
+      this.game.players.forEach(other => {
+        other.sendPlayerUpdate(player);
+      });
+    } catch (e) {
+      // turn was not accepted, send player update
+      console.log(`Turn not accepted`);
+      player.sendPlayerUpdate(player);
+    }
   }
 }
 

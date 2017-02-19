@@ -12,4 +12,24 @@ export default class FillAreaPacket extends Packet {
   @prop height = new Integer();
   @prop color = new Byte();
   @prop pattern = new Byte();
+
+  constructor(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    color: number,
+    pattern: number
+  ) {
+    // @todo These constructors should be automatically generated
+    
+    super();
+
+    this.x.value = x;
+    this.y.value = y;
+    this.width.value = width;
+    this.height.value = height;
+    this.color.value = color;
+    this.pattern.value = pattern;
+  }
 }

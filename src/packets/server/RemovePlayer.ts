@@ -7,4 +7,12 @@ import PlayerHandle from "../mixins/PlayerHandle";
 @id(Scope, Action.REMOVE_PLAYER)
 export default class RemovePlayerPacket extends Packet {
   @prop player = new PlayerHandle();
+
+  constructor(
+    player: number
+  ) {
+    super();
+    
+    this.player.value = player;
+  }
 }
