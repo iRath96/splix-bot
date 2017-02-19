@@ -17,11 +17,11 @@ export default class SetTrailPacket extends Packet {
     , super.serialize());
   }
 
-  deserialize(game: any, raw: number[]) {
-    super.deserialize(game, raw);
+  deserialize(raw: number[]) {
+    super.deserialize(raw);
     while (raw.length > 0) {
       let position = new Position();
-      position.deserialize(game, raw);
+      position.deserialize(raw);
       this.trail.push(position);
     }
   }

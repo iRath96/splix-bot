@@ -16,8 +16,8 @@ export default class Position extends PacketProperty<Vector> {
     return super.serialize();
   }
 
-  deserialize(game: any, raw: number[]) {
-    super.deserialize(game, raw);
+  deserialize(raw: number[]) {
+    super.deserialize(raw);
     this.value.x = this.x.value;
     this.value.y = this.y.value;
   }

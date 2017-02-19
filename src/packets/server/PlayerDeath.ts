@@ -17,12 +17,12 @@ export default class PlayerDeathPacket extends Packet {
     return raw;
   }
 
-  deserialize(game: any, raw: number[]) {
-    super.deserialize(game, raw);
+  deserialize(raw: number[]) {
+    super.deserialize(raw);
     
     if (raw.length > 0) {
       this.position = new Position();
-      this.position.deserialize(game, raw);
+      this.position.deserialize(raw);
     }
   }
 }

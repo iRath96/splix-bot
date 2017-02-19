@@ -17,7 +17,7 @@ export default class LongInteger extends PacketProperty<number> {
     ];
   }
 
-  deserialize(game: any, raw: number[]) {
+  deserialize(raw: number[]) {
     this.value = 0;
     for (let i = 0; i < 4; ++i)
       this.value = (raw.shift() | this.value << 8 >>> 0) >>> 0;

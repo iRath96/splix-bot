@@ -1,6 +1,8 @@
 import * as WebSocket from "ws";
 import { EventEmitter } from "events";
 
+import PlayerHandle from "../packets/mixins/PlayerHandle";
+
 import Game from "./Game";
 import Vector from "./Vector";
 
@@ -91,7 +93,7 @@ export default class Connection extends EventEmitter {
   }
 
   protected recvPacket(raw: number[]) {
-    let packet = Packet.deserialize(Scope.SERVER, this.game, raw);
+    let packet = Packet.deserialize(Scope.SERVER, raw);
     this.handlePacket(packet);
   }
 
@@ -263,9 +265,13 @@ export default class Connection extends EventEmitter {
   // handlers
   //
 
+  protected getPlayer(handle: PlayerHandle) {
+    return this.game.getPlayer(handle.value);
+  }
+
   @handler
   protected handlePlayerDeath(packet: PlayerDeathPacket) {
-    packet.player.value.die();
+    this.getPlayer(packet.player).die();
   }
 
   @handler
@@ -293,7 +299,7 @@ export default class Connection extends EventEmitter {
 
   @handler
   protected handleSetTrail(packet: SetTrailPacket) {
-    packet.player.value.trail = packet.trail.map(p => p.value);
+    this.getPlayer(packet.player).trail = packet.trail.map(p => p.value);
   }
 
   @handler
@@ -303,19 +309,19 @@ export default class Connection extends EventEmitter {
 
   @handler
   protected handleEmptyTrail(packet: EmptyTrailPacket) {
-    packet.player.value.trail = [];
+    this.getPlayer(packet.player).trail = [];
     if (packet.lastPosition !== null)
-      packet.player.value.position = packet.lastPosition.value;
+      this.getPlayer(packet.player).position = packet.lastPosition.value;
   }
 
   @handler
   protected handleRemovePlayer(packet: RemovePlayerPacket) {
-    this.game.removePlayer(packet.player.value);
+    this.game.removePlayer(this.getPlayer(packet.player));
   }
 
   @handler
   protected handlePlayerPosition(packet: PlayerPositionPacket) {
-    let player = packet.player.value;
+    let player = this.getPlayer(packet.player);
     player.position = packet.position.value;
     player.direction = packet.direction.value;
     
@@ -330,12 +336,12 @@ export default class Connection extends EventEmitter {
 
   @handler
   protected handlePlayerName(packet: PlayerNamePacket) {
-    packet.player.value.name = packet.name.value;
+    this.getPlayer(packet.player).name = packet.name.value;
   }
 
   @handler
   protected handlePlayerSkin(packet: PlayerSkinPacket) {
-    packet.player.value.skin = packet.skin.value;
+    this.getPlayer(packet.player).skin = packet.skin.value;
   }
 
   @handler

@@ -1,21 +1,19 @@
 import { PacketProperty, prop } from "../common/Packet";
 import { Integer } from "../types";
-import Game from "../../common/Game";
-import Player from "../../common/Player";
 
 
-export default class PlayerHandle extends PacketProperty<Player> {
+export default class PlayerHandle extends PacketProperty<number> {
   @prop protected playerId = new Integer();
 
-  value: Player;
+  value: number;
 
   serialize() {
-    this.playerId.value = this.value.id;
+    this.playerId.value = this.value;
     return super.serialize();
   }
 
-  deserialize(game: Game, raw: number[]) {
-    super.deserialize(game, raw);
-    this.value = game.getPlayer(this.playerId.value);
+  deserialize(raw: number[]) {
+    super.deserialize(raw);
+    this.value = this.playerId.value;
   }
 }

@@ -27,7 +27,7 @@ export default class StringProperty extends PacketProperty<string> {
     return b;
   }
 
-  deserialize(game: any, raw: number[]) {
+  deserialize(raw: number[]) {
     for (var b = "", d = raw.length, c = 0; c < d;) {
       let e = raw[c++];
       switch (e >> 4) {

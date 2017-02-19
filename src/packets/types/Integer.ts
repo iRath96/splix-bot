@@ -15,7 +15,7 @@ export default class Integer extends PacketProperty<number> {
     ];
   }
 
-  deserialize(game: any, raw: number[]) {
+  deserialize(raw: number[]) {
     this.value = raw.shift()!;
     this.value = (raw.shift() | this.value << 8 >>> 0) >>> 0;
   }

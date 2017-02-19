@@ -1,6 +1,4 @@
 import "reflect-metadata";
-
-import Game from "../../common/Game";
 import Scope from "../Scope";
 
 
@@ -27,9 +25,9 @@ export class Packet {
     , <number[]>[]);
   }
 
-  protected deserializeProperties(game: Game, raw: number[]) {
+  protected deserializeProperties(raw: number[]) {
     this.class.properties.reduce((array, property) => {
-      (<PacketProperty<any>>this[property.name]).deserialize(game, array);
+      (<PacketProperty<any>>this[property.name]).deserialize(array);
       return array;
     }, raw);
     return this;
@@ -42,11 +40,11 @@ export class Packet {
     return raw;
   }
   
-  deserialize(game: Game, raw: number[]) {
-    this.deserializeProperties(game, raw);
+  deserialize(raw: number[]) {
+    this.deserializeProperties(raw);
   }
 
-  static deserialize(scope: Scope, game: Game, raw: number[]) {
+  static deserialize(scope: Scope, raw: number[]) {
     let packetId = raw.shift()!;
     let handler = (<any>this.handlers).find((handler: any) =>
       handler[0][0] === scope && handler[0][1] === packetId
@@ -56,7 +54,7 @@ export class Packet {
       throw new Error(`No packet class for packet-id ${packetId} in scope ${Scope[scope]}`);
 
     let packet = new handler[1]();
-    packet.deserialize(game, raw);
+    packet.deserialize(raw);
 
     return packet;
   }

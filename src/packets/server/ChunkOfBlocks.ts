@@ -20,8 +20,8 @@ export default class ChunkOfBlocksPacket extends Packet {
     ];
   }
 
-  deserialize(game: any, raw: number[]) {
-    super.deserialize(game, raw);
+  deserialize(raw: number[]) {
+    super.deserialize(raw);
     this.data = raw.splice(0);
   }
 }
