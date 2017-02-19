@@ -2,6 +2,7 @@ import Connection from "./common/Connection";
 import Player from "./common/Player";
 import Vector from "./common/Vector";
 
+
 function lookaheadUnsafety(connection: Connection, player: Player, maxLookahead = 8) {
   let position = player.position.clone();
   for (let lookahead = 0; lookahead <= maxLookahead; ++lookahead) {
@@ -27,7 +28,7 @@ function lookaheadSafety(connection: Connection, player: Player, maxLookahead = 
 }
 
 let connection = new Connection({
-  url: "ws://139.59.20.156:8001/splix",
+  url: "ws://178.62.247.232:8002/splix",
   name: "Cheese"
 });
 
@@ -67,6 +68,10 @@ connection.addListener("open", () => {
       distanceToOthers = Math.floor(connection.game.getEstimatedTrailDistanceToOthers());
     }
 
+    // others might have send direction updates that we are not aware of yet
+    // this might reduce their distance to us, which is why we need to compensate for this
+    distanceToOthers = Math.max(0, distanceToOthers - 3);
+
     console.log(`distance to others: ${distanceToOthers} (rd: ${returnDistance})`);
 
     let unsafeAhead = lookaheadUnsafety(connection, player, 4);
@@ -87,7 +92,7 @@ connection.addListener("open", () => {
       return;
     }
 
-    if (lookaheadSafety(connection, player, Math.max(0, distanceToOthers - 5))) {
+    if (lookaheadSafety(connection, player, Math.max(0, distanceToOthers - 2))) {
       state = BotState.SAFE;
       console.log(`safety ahead`);
 
@@ -140,6 +145,13 @@ connection.addListener("open", () => {
       // was safe, now isn't anymore
 
       state = BotState.ADVANCING;
+
+      // compensate for
+      // 1. the direction update (which takes two cycles)
+      // 2. network latency
+      // 3. a third turn we might do (if there is no safe block adjacent to this one)
+      // 4. a shorter trail distance because our parallel trail might bring us closer to others
+
       returnDistance = 3;
 
       return;
