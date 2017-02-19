@@ -1,5 +1,6 @@
 import Connection from "./common/Connection";
 import Player from "./common/Player";
+import Vector from "./common/Vector";
 
 function lookaheadUnsafety(connection: Connection, player: Player, maxLookahead = 8) {
   let position = player.position.clone();
@@ -26,7 +27,7 @@ function lookaheadSafety(connection: Connection, player: Player, maxLookahead = 
 }
 
 let connection = new Connection({
-  url: "ws://46.101.242.80:8002/splix",
+  url: "ws://139.59.20.156:8001/splix",
   name: "Cheese"
 });
 
@@ -41,6 +42,7 @@ connection.addListener("open", () => {
   let returnDistance = 0;
 
   let state = BotState.SAFE;
+  let preReturnVector: Vector;
 
   setInterval(() => {
     connection.update();
@@ -54,7 +56,17 @@ connection.addListener("open", () => {
     if (!player)
       return;
     
-    let distanceToOthers = Math.floor(connection.game.getEstimatedTrailDistanceToOthers());
+    let distanceToOthers: number;
+
+    let onSafe = lookaheadSafety(connection, player, 0);
+    if (onSafe) {
+      // we're safe, so don't use trail distance
+      distanceToOthers = Math.floor(connection.game.distanceToOthers);
+    } else {
+      // use trail distance
+      distanceToOthers = Math.floor(connection.game.getEstimatedTrailDistanceToOthers());
+    }
+
     console.log(`distance to others: ${distanceToOthers} (rd: ${returnDistance})`);
 
     let unsafeAhead = lookaheadUnsafety(connection, player, 4);
@@ -69,14 +81,13 @@ connection.addListener("open", () => {
       return;
     }
 
-    let onSafe = lookaheadSafety(connection, player, 0);
-    if (onSafe && unsafeAhead && distanceToOthers <= 4) {
+    if (onSafe && unsafeAhead && distanceToOthers <= 8) {
       console.log(`unsafe edge, trying to turn`);
       connection.updateDirection((player!.direction + 1) % 4);
       return;
     }
 
-    if (lookaheadSafety(connection, player, Math.floor(distanceToOthers * 0.9))) {
+    if (lookaheadSafety(connection, player, Math.max(0, distanceToOthers - 5))) {
       state = BotState.SAFE;
       console.log(`safety ahead`);
 
@@ -89,6 +100,11 @@ connection.addListener("open", () => {
     if (state === BotState.PRE_RETURN) {
       console.log(`doing turn`);
 
+      preReturnVector.x = Math.round(preReturnVector.x);
+      preReturnVector.y = Math.round(preReturnVector.y);
+      preReturnVector.move(player.direction, 1);
+      player.position = preReturnVector;
+
       connection.updateDirection((player!.direction + 1) % 4);
       state = BotState.RETURNING;
 
@@ -97,12 +113,13 @@ connection.addListener("open", () => {
 
     if (
       state === BotState.ADVANCING &&
-      returnDistance > distanceToOthers - 8
+      returnDistance >= distanceToOthers - 5
     ) {
       console.log(`returning`);
 
       connection.updateDirection((player!.direction + 1) % 4);
       state = BotState.PRE_RETURN;
+      preReturnVector = player.position.clone();
 
       return;
     }
@@ -123,7 +140,7 @@ connection.addListener("open", () => {
       // was safe, now isn't anymore
 
       state = BotState.ADVANCING;
-      returnDistance = 0;
+      returnDistance = 3;
 
       return;
     }

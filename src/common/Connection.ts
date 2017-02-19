@@ -2,6 +2,7 @@ import * as WebSocket from "ws";
 import { EventEmitter } from "events";
 
 import Game from "./Game";
+import Vector from "./Vector";
 
 import { Packet } from "../packets/common/Packet";
 import Scope from "../packets/Scope";
@@ -42,8 +43,8 @@ const handler: PropertyDecorator = function (target: { constructor: typeof Conne
   ]);
 };
 
-const PING_BUFFER_COUNT = 3;
-const PING_INTERVAL = 5000; /* ms */
+const PING_BUFFER_COUNT = 5;
+const PING_INTERVAL = 2000; /* ms */
 
 export interface IConnectionOptions {
   url: string;
@@ -81,7 +82,12 @@ export default class Connection extends EventEmitter {
   }
 
   protected sendPacket(packet: Packet) {
-    this.socket!.send(new Uint8Array(packet.serialize()));
+    try {
+      this.socket!.send(new Uint8Array(packet.serialize()));
+    } catch (e) {
+      console.error(e);
+      this.disconnect();
+    }
   }
 
   protected recvPacket(raw: number[]) {
@@ -134,6 +140,10 @@ export default class Connection extends EventEmitter {
         // console.error(e);
       }
     };
+
+    this.socket.onerror = err => {
+      this.disconnect();
+    };
   }
 
   protected handleConnected() {
@@ -152,7 +162,7 @@ export default class Connection extends EventEmitter {
     this.sendPacket(new RequestMyTrailPacket());
   }
 
-  protected disconnect() {
+  disconnect() {
     this.socket = null;
     this.clearIntervals();
 
@@ -204,6 +214,13 @@ export default class Connection extends EventEmitter {
   // other
   //
 
+  on(event: "leaderboard", callback: (packet: LeaderboardPacket) => any): void;
+  on(event: string, callback: Function): any;
+  
+  on(event: string, callback: Function): any {
+    return super.on(event, callback);
+  }
+
   public update() {
     this.game.loop();
   }
@@ -222,16 +239,15 @@ export default class Connection extends EventEmitter {
 
     this.sendUpdateDirection(
       direction,
-      player.position.x,
-      player.position.y
+      Math.round(player.position.x),
+      Math.round(player.position.y)
     );
   }
 
   public sendUpdateDirection(direction: number, x: number, y: number) {
     let packet = new UpdateDirectionPacket();
     packet.direction.value = direction;
-    packet.position.x.value = x;
-    packet.position.y.value = y;
+    packet.position.value = new Vector(x, y);
     this.sendPacket(packet);
 
     let player = this.game.ownPlayer;
@@ -241,8 +257,6 @@ export default class Connection extends EventEmitter {
       player.position.y = y;
       player.lastPositionUpdate = new Date();
     }
-
-    // update local trail?
   }
 
   //
@@ -305,6 +319,8 @@ export default class Connection extends EventEmitter {
     player.position = packet.position.value;
     player.direction = packet.direction.value;
     
+    // the official client doesn't seem to do this,
+    // but we it nonetheless :)
     if (player.trail.length > 0)
       player.trail.push(player.position.clone());
 
@@ -334,6 +350,7 @@ export default class Connection extends EventEmitter {
 
   @handler
   protected handleLeaderboard(packet: LeaderboardPacket) {
+    this.emit("leaderboard", packet);
     // console.log(packet);
   }
 

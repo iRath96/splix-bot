@@ -178,6 +178,18 @@ export default class Game {
       [0] || Infinity;
   }
 
+  get distanceToOthers() {
+    let player = this.ownPlayer!;
+    return Object.keys(this.players)
+      .filter(key => key !== "0")
+      .map(key => {
+        let other = this.players[<any>key];
+        return player.position.manhattenDistance(other.position);
+      })
+      .sort((a, b) => a - b)
+      [0] || 40;
+  }
+
   removePlayer(player: Player) {
     delete this.players[player.id];
   }
@@ -196,7 +208,7 @@ export default class Game {
       }
     }
 
-    console.log(`fill ${startX}, ${startY}; ${width}, ${height}; with ${color}`);
+    // console.log(`fill ${startX}, ${startY}; ${width}, ${height}; with ${color}`);
   }
 
   setChunkOfBlocks(
@@ -213,7 +225,7 @@ export default class Game {
       }
     }
 
-    console.log(`chunk ${startX}, ${startY}; ${width}, ${height}`);
+    // console.log(`chunk ${startX}, ${startY}; ${width}, ${height}`);
   }
 
   loop() {
