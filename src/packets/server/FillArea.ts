@@ -14,12 +14,12 @@ export default class FillAreaPacket extends Packet {
   @prop pattern = new Byte();
 
   constructor(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    color: number,
-    pattern: number
+    x: number = 0,
+    y: number = 0,
+    width: number = 0,
+    height: number = 0,
+    color: number = 0,
+    pattern: number = 0
   ) {
     // @todo These constructors should be automatically generated
     

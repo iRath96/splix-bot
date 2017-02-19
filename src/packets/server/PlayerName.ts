@@ -11,8 +11,8 @@ export default class PlayerNamePacket extends Packet {
   @prop name = new String();
 
   constructor(
-    player: number,
-    name: string
+    player: number = 0,
+    name: string = ""
   ) {
     super();
     this.player.value = player;

@@ -11,8 +11,8 @@ export default class PlayerSkinPacket extends Packet {
   @prop skin = new Byte();
 
   constructor(
-    player: number,
-    skin: number
+    player: number = 0,
+    skin: number = 0
   ) {
     super();
     

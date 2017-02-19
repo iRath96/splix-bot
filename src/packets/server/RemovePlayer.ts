@@ -9,7 +9,7 @@ export default class RemovePlayerPacket extends Packet {
   @prop player = new PlayerHandle();
 
   constructor(
-    player: number
+    player: number = 0
   ) {
     super();
     

@@ -9,11 +9,11 @@ import Vector from "../../common/Vector";
 @id(Scope, Action.SET_TRAIL)
 export default class SetTrailPacket extends Packet {
   @prop player = new PlayerHandle();
-  trail: Position[] = [];
+  trail: Position[];
 
   constructor(
-    player: number,
-    trail: Vector[]
+    player: number = 0,
+    trail: Vector[] = []
   ) {
     super();
 

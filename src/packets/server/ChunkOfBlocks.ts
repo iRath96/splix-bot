@@ -11,14 +11,14 @@ export default class ChunkOfBlocksPacket extends Packet {
   @prop width = new Integer();
   @prop height = new Integer();
   
-  data: number[] = [];
+  data: number[];
 
   constructor(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    data: number[]
+    x: number = 0,
+    y: number = 0,
+    width: number = 0,
+    height: number = 0,
+    data: number[] = []
   ) {
     super();
     

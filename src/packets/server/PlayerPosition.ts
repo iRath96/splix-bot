@@ -15,9 +15,9 @@ export default class PlayerPositionPacket extends Packet {
   @prop direction = new Byte();
 
   constructor(
-    player: number,
-    position: Vector,
-    direction: number
+    player: number = 0,
+    position: Vector = new Vector(),
+    direction: number = 0
   ) {
     super();
 
