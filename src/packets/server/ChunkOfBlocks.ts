@@ -13,6 +13,22 @@ export default class ChunkOfBlocksPacket extends Packet {
   
   data: number[] = [];
 
+  constructor(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    data: number[]
+  ) {
+    super();
+    
+    this.x.value = x;
+    this.y.value = y;
+    this.width.value = width;
+    this.height.value = height;
+    this.data = data;
+  }
+
   serialize() {
     return [
       ...super.serialize(),

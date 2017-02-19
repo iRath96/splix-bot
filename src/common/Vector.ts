@@ -18,6 +18,16 @@ export default class Vector {
     }
   }
 
+  distanceInDirection(other: Vector, direction: number) {
+    switch (direction) {
+    case 0: return other.x - this.x;
+    case 1: return other.y - this.y;
+    case 2: return other.x - this.x;
+    case 3: return other.y - this.y;
+    }
+    return 0;
+  }
+
   euclideanDistance(other: Vector) {
     let dx = this.x - other.x;
     let dy = this.y - other.y;
