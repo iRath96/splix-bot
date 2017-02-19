@@ -125,12 +125,12 @@ export default class Connection extends EventEmitter {
       `Join your bot at http://splix.io/#ip-${this.options.url.split("/")[2]}`
     );
     
-    this.socket.onopen = () => {
+    this.socket.on("open", () => {
       this.handleConnected();
-    };
+    });
 
-    this.socket.onmessage = msg => {
-      let uData = new Uint8Array(msg.data);
+    this.socket.on("message", msg => {
+      let uData = new Uint8Array(msg);
       let data = (<any>Array).from(uData);
 
       try {
@@ -139,11 +139,11 @@ export default class Connection extends EventEmitter {
         // console.log("Failed to parse packet", uData);
         // console.error(e);
       }
-    };
+    });
 
-    this.socket.onerror = err => {
+    this.socket.on("error", err => {
       this.disconnect();
-    };
+    });
   }
 
   protected handleConnected() {

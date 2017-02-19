@@ -15,4 +15,4 @@ export enum Action {
   PATREON_CODE = 12
 }
 
-export const Scope = Scopes.RECEIVE;
+export const Scope = Scopes.SEND;

@@ -53,7 +53,7 @@ export class Packet {
     );
 
     if (handler === undefined)
-      throw new Error(`No packet class for packet-id ${packetId}`);
+      throw new Error(`No packet class for packet-id ${packetId} in scope ${Scope[scope]}`);
 
     let packet = new handler[1]();
     packet.deserialize(game, raw);
