@@ -1,5 +1,8 @@
 import Scopes from "../Scope";
 
+/**
+ * Packets sent by the client.
+ */
 export enum Action {
   UPDATE_DIR = 1,
   SET_USERNAME = 2,
@@ -15,4 +18,4 @@ export enum Action {
   PATREON_CODE = 12
 }
 
-export const Scope = Scopes.SEND;
+export const Scope = Scopes.CLIENT;

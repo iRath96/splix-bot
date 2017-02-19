@@ -28,7 +28,7 @@ function lookaheadSafety(connection: Connection, player: Player, maxLookahead = 
 }
 
 let connection = new Connection({
-  url: "ws://178.62.247.232:8002/splix",
+  url: "ws://139.59.20.156:8001/splix",
   name: "Cheese"
 });
 

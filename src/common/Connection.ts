@@ -7,31 +7,31 @@ import Vector from "./Vector";
 import { Packet } from "../packets/common/Packet";
 import Scope from "../packets/Scope";
 
-import PlayerDeathPacket from "../packets/receive/PlayerDeath";
-import FillAreaPacket from "../packets/receive/FillArea";
-import ChunkOfBlocksPacket from "../packets/receive/ChunkOfBlocks";
-import SetTrailPacket from "../packets/receive/SetTrail";
-import EmptyTrailPacket from "../packets/receive/EmptyTrail";
-import PongPacket from "../packets/receive/Pong";
-import RemovePlayerPacket from "../packets/receive/RemovePlayer";
-import ServerReadyPacket from "../packets/receive/Ready";
-import PlayerPositionPacket from "../packets/receive/PlayerPosition";
-import PlayerNamePacket from "../packets/receive/PlayerName";
-import PlayerSkinPacket from "../packets/receive/PlayerSkin";
-import MyScorePacket from "../packets/receive/MyScore";
-import MyRankPacket from "../packets/receive/MyRank";
-import LeaderboardPacket from "../packets/receive/Leaderboard";
-import MapSizePacket from "../packets/receive/MapSize";
-import MinimapPacket from "../packets/receive/Minimap";
-import YouDiedPacket from "../packets/receive/YouDied";
+import PlayerDeathPacket from "../packets/server/PlayerDeath";
+import FillAreaPacket from "../packets/server/FillArea";
+import ChunkOfBlocksPacket from "../packets/server/ChunkOfBlocks";
+import SetTrailPacket from "../packets/server/SetTrail";
+import EmptyTrailPacket from "../packets/server/EmptyTrail";
+import PongPacket from "../packets/server/Pong";
+import RemovePlayerPacket from "../packets/server/RemovePlayer";
+import ServerReadyPacket from "../packets/server/Ready";
+import PlayerPositionPacket from "../packets/server/PlayerPosition";
+import PlayerNamePacket from "../packets/server/PlayerName";
+import PlayerSkinPacket from "../packets/server/PlayerSkin";
+import MyScorePacket from "../packets/server/MyScore";
+import MyRankPacket from "../packets/server/MyRank";
+import LeaderboardPacket from "../packets/server/Leaderboard";
+import MapSizePacket from "../packets/server/MapSize";
+import MinimapPacket from "../packets/server/Minimap";
+import YouDiedPacket from "../packets/server/YouDied";
 
-import PingPacket from "../packets/send/Ping";
-import VersionPacket from "../packets/send/Version";
-import SetUsernamePacket from "../packets/send/SetUsername";
-import SkinPacket from "../packets/send/Skin";
-import RequestMyTrailPacket from "../packets/send/RequestMyTrail";
-import ReadyPacket from "../packets/send/Ready";
-import UpdateDirectionPacket from "../packets/send/UpdateDirection";
+import PingPacket from "../packets/client/Ping";
+import VersionPacket from "../packets/client/Version";
+import SetUsernamePacket from "../packets/client/SetUsername";
+import SkinPacket from "../packets/client/Skin";
+import RequestMyTrailPacket from "../packets/client/RequestMyTrail";
+import ReadyPacket from "../packets/client/Ready";
+import UpdateDirectionPacket from "../packets/client/UpdateDirection";
 
 
 const handler: PropertyDecorator = function (target: { constructor: typeof Connection }, property: string) {
@@ -91,7 +91,7 @@ export default class Connection extends EventEmitter {
   }
 
   protected recvPacket(raw: number[]) {
-    let packet = Packet.deserialize(Scope.RECEIVE, this.game, raw);
+    let packet = Packet.deserialize(Scope.SERVER, this.game, raw);
     this.handlePacket(packet);
   }
 

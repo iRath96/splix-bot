@@ -1,5 +1,8 @@
 import Scopes from "../Scope";
 
+/**
+ * Packets sent by the server.
+ */
 export enum Action {
   UPDATE_BLOCKS = 1,
   PLAYER_POS = 2,
@@ -26,4 +29,4 @@ export enum Action {
   TEAM_LIFE_COUNT = 23
 }
 
-export const Scope = Scopes.RECEIVE;
+export const Scope = Scopes.SERVER;
