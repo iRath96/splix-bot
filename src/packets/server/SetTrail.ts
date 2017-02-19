@@ -3,13 +3,23 @@ import { Scope, Action } from "./Action";
 
 import PlayerHandle from "../mixins/PlayerHandle";
 import Position from "../mixins/Position";
+import Vector from "../../common/Vector";
 
 
 @id(Scope, Action.SET_TRAIL)
 export default class SetTrailPacket extends Packet {
   @prop player = new PlayerHandle();
-  
   trail: Position[] = [];
+
+  constructor(
+    player: number,
+    trail: Vector[]
+  ) {
+    super();
+
+    this.player.value = player;
+    this.trail = trail.map(vector => new Position(vector));
+  }
 
   serialize() {
     return this.trail.reduce((raw, position) =>

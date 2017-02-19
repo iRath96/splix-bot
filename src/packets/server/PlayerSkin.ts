@@ -9,4 +9,14 @@ import PlayerHandle from "../mixins/PlayerHandle";
 export default class PlayerSkinPacket extends Packet {
   @prop player = new PlayerHandle();
   @prop skin = new Byte();
+
+  constructor(
+    player: number,
+    skin: number
+  ) {
+    super();
+    
+    this.player.value = player;
+    this.skin.value = skin;
+  }
 }

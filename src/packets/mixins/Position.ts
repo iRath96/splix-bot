@@ -8,7 +8,11 @@ export default class Position extends PacketProperty<Vector> {
   @prop x = new Integer();
   @prop y = new Integer();
 
-  value = new Vector();
+  constructor(
+    public value: Vector = new Vector(0, 0)
+  ) {
+    super();
+  }
 
   serialize() {
     this.x.value = this.value.x;

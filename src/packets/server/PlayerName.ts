@@ -9,4 +9,13 @@ import PlayerHandle from "../mixins/PlayerHandle";
 export default class PlayerNamePacket extends Packet {
   @prop player = new PlayerHandle();
   @prop name = new String();
+
+  constructor(
+    player: number,
+    name: string
+  ) {
+    super();
+    this.player.value = player;
+    this.name.value = name;
+  }
 }
