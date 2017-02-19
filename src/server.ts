@@ -95,6 +95,7 @@ class Player {
   }
 
   startTrail() {
+    console.log("start-trail");
     this.trail.push(this.position.clone());
 
     this.trailChunks.clear();
@@ -102,6 +103,7 @@ class Player {
   }
 
   endTrail() {
+    console.log("end-trail");
     this.trail = [];
   }
 
@@ -217,6 +219,13 @@ class Player {
       new RemovePlayerPacket(other.id)
     );
   }
+
+  get isOutside() {
+    return this.chunk.playerIdAt(
+      this.position.x,
+      this.position.y
+    ) !== this.id;
+  }
 }
 
 const MAP_SIZE = 600;
@@ -255,7 +264,7 @@ class Chunk {
     // console.log(`fillArea ${x},${y};${width},${height}`);
     for (let xx = x; xx < x + width; ++xx)
       for (let yy = y; yy < y + height; ++yy)
-        this.playerIds[x + y * CHUNK_SIZE] = player.id;
+        this.playerIds[yy + xx * CHUNK_SIZE] = player.id;
   }
 
   removePlayer(player: Player) {
@@ -267,6 +276,10 @@ class Chunk {
       }
     
     return wasUpdated;
+  }
+
+  playerIdAt(x: number, y: number) {
+    return this.playerIds[Math.floor(y) % CHUNK_SIZE + (Math.floor(x) % CHUNK_SIZE) * CHUNK_SIZE];
   }
 }
 
@@ -381,7 +394,7 @@ class Game {
   }
 
   chunkForPosition(x: number, y: number) {
-    let id = ~~(x / CHUNK_SIZE) + ~~(y / CHUNK_SIZE) * CHUNKS_PER_DIMENSION;
+    let id = Math.floor(x / CHUNK_SIZE) + Math.floor(y / CHUNK_SIZE) * CHUNKS_PER_DIMENSION;
     return this.chunks.get(id)!;
   }
 
@@ -390,9 +403,23 @@ class Game {
       // update player position
       player.updatePosition();
       player.setChunk(this.chunkForPosition(player.position.x, player.position.y));
-    });
 
-    // @todo Fill area / kill players
+      // trail management
+      let hasTrail = player.hasTrail;
+      let isOutside = player.isOutside;
+
+      if (hasTrail !== isOutside) {
+        if (hasTrail) {
+          console.log(`@todo fill-area`);
+          player.endTrail();
+        } else
+          player.startTrail();
+        
+        this.players.forEach(other =>
+          other.sendPlayerUpdate(other)
+        );
+      }
+    });
 
     this.players.forEach(player => {
       player.sendChunkUpdates();
@@ -562,7 +589,7 @@ export class Server extends EventEmitter {
 
       console.log(`Turn accepted`);
 
-      // notify players about the direction update
+      // notify players about the direction update / trail update
       this.game.players.forEach(other => {
         other.sendPlayerUpdate(player);
       });
