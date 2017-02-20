@@ -28,7 +28,7 @@ function lookaheadSafety(connection: Connection, player: Player, maxLookahead = 
 }
 
 let connection = new Connection({
-  url: "ws://139.59.20.156:8001/splix",
+  url: "ws://104.131.86.130:8002/splix",
   name: "Cheese"
 });
 
@@ -36,7 +36,8 @@ enum BotState {
   SAFE = 0,
   ADVANCING = 1,
   PRE_RETURN = 2,
-  RETURNING = 3
+  RETURNING = 3,
+  SAFE_RETURN = 4
 }
 
 connection.addListener("open", () => {
@@ -76,24 +77,23 @@ connection.addListener("open", () => {
 
     let unsafeAhead = lookaheadUnsafety(connection, player, 4);
 
-    if (!unsafeAhead) {
+    if (onSafe) {
       state = BotState.SAFE;
       console.log(`safe mode`);
-      
-      if (Math.random() > 0.95)
-        connection.updateDirection((player!.direction + 3) % 4);
-      
-      return;
+
+      if (!unsafeAhead) {
+        if (Math.random() > 0.95)
+          connection.updateDirection((player!.direction + 3) % 4);
+        return;
+      } else if (distanceToOthers <= 8) {
+        console.log(`unsafe edge, trying to turn`);
+        connection.updateDirection((player!.direction + 1) % 4);
+        return;
+      }
     }
 
-    if (onSafe && unsafeAhead && distanceToOthers <= 8) {
-      console.log(`unsafe edge, trying to turn`);
-      connection.updateDirection((player!.direction + 1) % 4);
-      return;
-    }
-
-    if (lookaheadSafety(connection, player, Math.max(0, distanceToOthers - 2))) {
-      state = BotState.SAFE;
+    if (state !== BotState.SAFE && lookaheadSafety(connection, player, Math.max(0, distanceToOthers - 2))) {
+      state = BotState.SAFE_RETURN;
       console.log(`safety ahead`);
 
       if (returnDistance > 0)
