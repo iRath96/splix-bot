@@ -76,7 +76,8 @@ connection.addListener("open", () => {
     // others might have send direction updates that we are not aware of yet
     // this might reduce their distance to us, which is why we need to compensate for this
     distanceToOthers = Math.max(0, distanceToOthers - 3);
-
+    distanceToOthers = Math.min(distanceToOthers, Math.floor(connection.game.distanceToVoid) - 1);
+    
     console.log(`distance to others: ${distanceToOthers} (rd: ${returnDistance})`);
 
     let unsafeAhead = lookaheadUnsafety(connection, player, 4);

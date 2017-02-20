@@ -190,6 +190,16 @@ export default class Game {
       [0] || 40;
   }
 
+  get distanceToVoid() {
+    let player = this.ownPlayer!;
+    return Math.min(
+      player.position.x,
+      player.position.y,
+      600 - player.position.x,
+      600 - player.position.y
+    );
+  }
+
   removePlayer(player: Player) {
     delete this.players[player.id];
   }
