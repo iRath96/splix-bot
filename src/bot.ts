@@ -48,6 +48,8 @@ connection.addListener("open", () => {
   let preReturnVector: Vector;
   let lastSafePosition: Vector;
 
+  let advanceDirection: number;
+
   let turnDirection: number = 1;
 
   setInterval(() => {
@@ -114,10 +116,10 @@ connection.addListener("open", () => {
 
       preReturnVector.x = Math.round(preReturnVector.x);
       preReturnVector.y = Math.round(preReturnVector.y);
-      preReturnVector.move(player.direction, 1);
+      preReturnVector.move((advanceDirection + turnDirection) % 4, 1);
       player.position = preReturnVector;
 
-      connection.updateDirection((player!.direction + turnDirection) % 4);
+      connection.updateDirection((advanceDirection + 2 * turnDirection) % 4);
       state = BotState.RETURNING;
 
       return;
@@ -125,11 +127,11 @@ connection.addListener("open", () => {
 
     if (
       state === BotState.ADVANCING &&
-      returnDistance >= distanceToOthers - 5
+      returnDistance >= distanceToOthers - 4 // @todo Describe the -4
     ) {
       console.log(`returning`);
 
-      connection.updateDirection((player!.direction + turnDirection) % 4);
+      connection.updateDirection((advanceDirection + turnDirection) % 4);
       state = BotState.PRE_RETURN;
       preReturnVector = player.position.clone();
 
@@ -178,6 +180,7 @@ connection.addListener("open", () => {
       // 4. a shorter trail distance because our parallel trail might bring us closer to others
 
       returnDistance = 3;
+      advanceDirection = player.direction;
       turnDirection = 1; // turnDirection === 1 ? 3 : 1;
 
       return;
