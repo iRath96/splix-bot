@@ -37,7 +37,8 @@ enum BotState {
   ADVANCING = 1,
   PRE_RETURN = 2,
   RETURNING = 3,
-  SAFE_RETURN = 4
+  POST_RETURN = 4,
+  SAFE_RETURN = 5
 }
 
 connection.addListener("open", () => {
@@ -45,6 +46,9 @@ connection.addListener("open", () => {
 
   let state = BotState.SAFE;
   let preReturnVector: Vector;
+  let lastSafePosition: Vector;
+
+  let turnDirection: number = 1;
 
   setInterval(() => {
     connection.update();
@@ -78,16 +82,18 @@ connection.addListener("open", () => {
     let unsafeAhead = lookaheadUnsafety(connection, player, 4);
 
     if (onSafe) {
+      lastSafePosition = player.position.clone();
+
       state = BotState.SAFE;
       console.log(`safe mode`);
 
       if (!unsafeAhead) {
         if (Math.random() > 0.95)
-          connection.updateDirection((player!.direction + 3) % 4);
+          connection.updateDirection((player!.direction + 4 - turnDirection) % 4);
         return;
       } else if (distanceToOthers <= 8) {
         console.log(`unsafe edge, trying to turn`);
-        connection.updateDirection((player!.direction + 1) % 4);
+        connection.updateDirection((player!.direction + turnDirection) % 4);
         return;
       }
     }
@@ -110,7 +116,7 @@ connection.addListener("open", () => {
       preReturnVector.move(player.direction, 1);
       player.position = preReturnVector;
 
-      connection.updateDirection((player!.direction + 1) % 4);
+      connection.updateDirection((player!.direction + turnDirection) % 4);
       state = BotState.RETURNING;
 
       return;
@@ -122,14 +128,32 @@ connection.addListener("open", () => {
     ) {
       console.log(`returning`);
 
-      connection.updateDirection((player!.direction + 1) % 4);
+      connection.updateDirection((player!.direction + turnDirection) % 4);
       state = BotState.PRE_RETURN;
       preReturnVector = player.position.clone();
 
       return;
     }
 
-    if (state === BotState.RETURNING) {
+    if (state === BotState.RETURNING && lastSafePosition) {
+      if (lastSafePosition.manhattenDistance(player.position) <= 2) {
+        let safeDistance = lastSafePosition.distanceInDirection(player.position, player.direction);
+        console.log(`safeDistance: ${safeDistance}`);
+        console.log(lastSafePosition);
+        console.log(player.position);
+
+        if (Math.abs(safeDistance) <= 1) {
+          let newDirection = (player!.direction + turnDirection) % 4;
+          player.position = lastSafePosition.clone();
+          player.position.move(newDirection, -1);
+          connection.updateDirection(newDirection);
+
+          console.log(`post return`);
+          state = BotState.POST_RETURN;
+          return;
+        }
+      }
+
       console.log(`returning`);
       --returnDistance;
       return;
@@ -153,6 +177,7 @@ connection.addListener("open", () => {
       // 4. a shorter trail distance because our parallel trail might bring us closer to others
 
       returnDistance = 3;
+      turnDirection = 1; // turnDirection === 1 ? 3 : 1;
 
       return;
     }
