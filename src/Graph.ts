@@ -44,6 +44,11 @@ export class Edge {
   get minY() { return Math.min(this.a.y, this.b.y); }
   get maxY() { return Math.max(this.a.y, this.b.y); }
 
+  get minXP() { return this.a.x < this.b.x ? this.a : this.b; }
+  get maxXP() { return this.a.x > this.b.x ? this.a : this.b; }
+  get minYP() { return this.a.y < this.b.y ? this.a : this.b; }
+  get maxYP() { return this.a.y > this.b.y ? this.a : this.b; }
+
   get isXEdge() { return this.a.x === this.b.x; }
   get isYEdge() { return this.a.y === this.b.y; }
 
@@ -60,6 +65,10 @@ export class Edge {
   get yOff() {
     // @todo For debugging
     return this.xOff;// + ++Edge.counter;
+  }
+
+  doesOverlap(other: Edge) {
+    return this.maxX >= other.minX && this.minX <= other.maxX && this.maxY >= other.minY && this.minY <= other.maxY;
   }
 }
 
@@ -101,11 +110,11 @@ export class Graph {
   }
 
   createEdge(a: Node, b: Node, meta: any) {
+    if (a === b)
+      throw new Error("Invalid edge to itself");
+    
     let edge = new Edge(a, b);
     edge.meta = meta;
-
-    if (a.x === b.x && a.y === b.y)
-      throw new Error("Edge without length");
 
     if (a.x === b.x) {
       this.edgesX.get(a.x).add(edge);
@@ -154,20 +163,45 @@ export class Graph {
   protected newEdges: Set<Edge>;
   protected temporaryEdges: Set<Edge>;
 
-  protected handleEdgeCollisions(newEdge: Edge, oldEdge: Edge) {
-    let testEdges = new Set<Edge>();
+  protected handleEdgeCollision(newEdge: Edge, oldEdge: Edge) {
+    let edgeParts = new Set<Edge>();
 
-    console.log(newEdge, oldEdge);
-    if (newEdge.isXEdge === oldEdge.isXEdge)
-      throw new Error("Edge collision with edge overlay not implemented");
+    if (newEdge.isXEdge === oldEdge.isXEdge) {
+      let sameDirection = oldEdge.dx * newEdge.dx + oldEdge.dy * newEdge.dy > 0;
+      if (!sameDirection)
+        return null;
+
+      this.removeEdge(oldEdge);
+      if (newEdge.isYEdge) {
+        // constant x
+
+        if (newEdge.maxX < oldEdge.maxX) {
+          if (oldEdge.a.x < oldEdge.b.x) {
+            this.createEdge(newEdge.maxXP, oldEdge.maxXP, oldEdge.meta);
+            this.splitNodes.add(oldEdge.maxXP);
+          } else {
+            this.createEdge(oldEdge.maxXP, newEdge.maxXP, oldEdge.meta);
+            this.splitNodes.add(newEdge.maxXP);
+          }
+        }
+      } else {
+        // constant y
+      }
+
+      return null;
+    }
+
+    // no overlay
     
     let winding = oldEdge.dx * newEdge.dy - oldEdge.dy * newEdge.dx;
-    console.log(winding);
 
     let x = newEdge.isXEdge ? newEdge.x : oldEdge.x;
     let y = newEdge.isYEdge ? newEdge.y : oldEdge.y;
 
     let node = this.createNode(x, y);
+    if (node === newEdge.a || node === newEdge.b || node === oldEdge.a || node === oldEdge.b)
+      return null;
+
     this.splitNodes.add(node);
 
     // split up new edge
@@ -180,8 +214,8 @@ export class Graph {
     this.newEdges.add(newA);
     this.newEdges.add(newB);
 
-    testEdges.add(newA);
-    testEdges.add(newB);
+    edgeParts.add(newA);
+    edgeParts.add(newB);
 
     // split up old edge
     this.temporaryEdges.delete(oldEdge); // might be temporary already
@@ -193,36 +227,33 @@ export class Graph {
     let oldB = this.createEdge(node, oldEdge.b, oldEdge.meta);
     this.temporaryEdges.add(winding > 0 ? oldA : oldB);
     
-    return testEdges;
+    console.log(newEdge, edgeParts);
+    return edgeParts;
   }
 
-  protected findCollidingEdge(edge: Edge) {
-    let result: Edge | undefined = undefined;
+  protected findCollidingEdges(edge: Edge) {
+    let result = new Set<Edge>();
 
     // @todo This is not DRY
-    if (!result)
-      [ ...this.edgesX.keys() ].find(x => {
-        if (x <= edge.minX && x >= edge.maxX)
-          return false;
-        
-        result = [ ...this.edgesX.get(x) ].find(other =>
-          !this.newEdges.has(other) && other.minY < edge.maxY && other.maxY > edge.maxY
-        );
-
-        return result !== undefined;
+    [ ...this.edgesX.keys() ].forEach(x => {
+      if (x < edge.minX || x > edge.maxX)
+        return;
+      
+      this.edgesX.get(x).forEach(other => {
+        if (!this.newEdges.has(other) && other.minY <= edge.maxY && other.maxY >= edge.minY)
+          result.add(other);
       });
-
-    if (!result)
-      [ ...this.edgesY.keys() ].find(y => {
-        if (y <= edge.minY && y >= edge.maxY)
-          return false;
-        
-        result = [ ...this.edgesY.get(y) ].find(other =>
-          !this.newEdges.has(other) && other.minX < edge.maxX && other.maxX > edge.maxX
-        );
-
-        return result !== undefined;
+    });
+    
+    [ ...this.edgesY.keys() ].forEach(y => {
+      if (y < edge.minY || y > edge.maxY)
+        return;
+      
+      this.edgesY.get(y).forEach(other => {
+        if (!this.newEdges.has(other) && other.minX <= edge.maxX && other.maxX >= edge.minX)
+          result.add(other);
       });
+    });
     
     return result;
   }
@@ -231,6 +262,8 @@ export class Graph {
     this.splitNodes = new Set<Node>();
     this.newEdges = new Set<Edge>();
     this.temporaryEdges = new Set<Edge>();
+
+    // @todo delete contained edges
 
     // create new nodes
     [
@@ -243,20 +276,36 @@ export class Graph {
       let newEdge = this.createEdge(prevNode, node, meta);
       this.newEdges.add(newEdge);
 
-      let testEdges = new Set<Edge>();
-      testEdges.add(newEdge);
+      let newEdgeParts = new Set<Edge>();
+      newEdgeParts.add(newEdge);
 
-      while (testEdges.size > 0) {
-        let testEdge = [ ...testEdges ][0];
-        testEdges.delete(testEdge);
+      let collidingEdges = this.findCollidingEdges(newEdge);
+      collidingEdges.forEach(collidingEdge => {
+        let toBeTested = new Set<Edge>(newEdgeParts);
+        while (toBeTested.size > 0) {
+          let edgePart = [ ...toBeTested ][0];
+          toBeTested.delete(edgePart);
 
-        let collidingEdge = this.findCollidingEdge(testEdge);
-        if (collidingEdge !== undefined) {
+          if (!collidingEdge.doesOverlap(edgePart))
+            return;
+          
+          console.log("collision", edgePart, collidingEdge);
+
           // handle collision
-          this.handleEdgeCollisions(testEdge, collidingEdge)
-            .forEach(newEdge => testEdges.add(newEdge));
-        }
-      }
+          let parts = this.handleEdgeCollision(edgePart, collidingEdge);
+          if (parts !== null) {
+            newEdgeParts.delete(edgePart);
+            parts.forEach(newEdge => {
+              newEdgeParts.add(newEdge).forEach(splitEP => {
+                toBeTested.add(splitEP);
+                newEdgeParts.add(splitEP);
+              });
+            });
+          }
+          
+          console.log(newEdgeParts.size);
+        };
+      });
       
       return node;
     });
@@ -302,9 +351,10 @@ export class Graph {
 }
 
 let g = new Graph();
-g.fillArea(100, 100, 200, 200, "#ff0000");
-//g.fillArea(310, 100, 200, 200, "#0000ff");
-g.fillArea(80, 220, 300, 240, "#00ff00");
+g.fillArea(300, 100, 200, 200, "#0000ff");
+g.fillArea(350, 150, 100, 100, "#00ff00");
+console.log("start");
+g.fillArea(80, 100, 300, 100, "#ff0000");
 
 let svg = g.dump();
 // console.log(svg);
