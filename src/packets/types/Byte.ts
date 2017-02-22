@@ -9,6 +9,7 @@ export default class Byte extends PacketProperty<number> {
   }
 
   serialize() {
+    this.value = Math.floor(this.value);
     return [ this.value ];
   }
 

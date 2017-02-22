@@ -52,6 +52,7 @@ class Player {
   public version: number;
 
   public position: Vector;
+  public positionNeedsBroadcast: boolean = false;
   public lastInsidePosition: Vector;
   public lastPositionUpdate: Date;
   public direction: number = 0;
@@ -68,6 +69,7 @@ class Player {
     let deltaTime = now.getTime() - this.lastPositionUpdate.getTime();
 
     this.position.move(this.direction, GLOBAL_SPEED * deltaTime);
+    this.position.round();
     this.lastPositionUpdate = now;
   }
 
@@ -540,7 +542,7 @@ class Game {
   }
 
   chunkForPosition(x: number, y: number) {
-    let id = Math.floor(x / CHUNK_SIZE) + Math.floor(y / CHUNK_SIZE) * CHUNKS_PER_DIMENSION;
+    let id = Math.floor(Math.round(x) / CHUNK_SIZE) + Math.floor(Math.round(y) / CHUNK_SIZE) * CHUNKS_PER_DIMENSION;
     return this.chunks.get(id)!;
   }
 
@@ -645,6 +647,14 @@ class Game {
     );
   }
 
+  broadcastPlayerUpdate(player: Player) {
+    player.positionNeedsBroadcast = false;
+
+    this.players.forEach(other =>
+      other.sendPlayerUpdate(player)
+    );
+  }
+
   loop() {
     this.players.forEach(player => {
       // update player position
@@ -665,10 +675,11 @@ class Game {
         } else
           player.startTrail();
         
-        this.players.forEach(other =>
-          other.sendPlayerUpdate(other)
-        );
+        this.broadcastPlayerUpdate(player);
       }
+
+      if (player.positionNeedsBroadcast)
+        this.broadcastPlayerUpdate(player);
     });
 
     this.players.forEach(player => {
@@ -818,35 +829,34 @@ export class Server extends EventEmitter {
 
   @handler
   protected handleDirectionUpdate(player: Player, packet: UpdateDirectionPacket) {
+    player.positionNeedsBroadcast = true;
+
     try {
-      player.updatePosition();
+      // player.updatePosition();
+      player.lastPositionUpdate = new Date();
 
       if (packet.direction.value < 0 || packet.direction.value > 3)
         throw new Error("Invalid direction");
 
-      let distanceSinceTurn = player.position.distanceInDirection(packet.position.value, player.direction);
+      let distanceSinceTurn = packet.position.value.distanceInDirection(player.position, player.direction);
       console.log(distanceSinceTurn);
+      
       if (distanceSinceTurn < -2)
         throw new Error("Turn in the future");
       
       if (distanceSinceTurn > 2)
-        throw new Error("Turn to long ago");
+        throw new Error("Turn too long ago");
       
       // update direction
-      player.position.move(player.direction, -distanceSinceTurn);
+      //player.position.move(player.direction, -distanceSinceTurn);
+      player.position = packet.position.value;
       player.setDirection(packet.direction.value);
-      player.position.move(player.direction, distanceSinceTurn);
+      //player.position.move(player.direction, distanceSinceTurn);
 
       console.log(`Turn accepted`);
-
-      // notify players about the direction update / trail update
-      this.game.players.forEach(other => {
-        other.sendPlayerUpdate(player);
-      });
     } catch (e) {
       // turn was not accepted, send player update
       console.log(`Turn not accepted`);
-      player.sendPlayerUpdate(player);
     }
   }
 }

@@ -9,6 +9,7 @@ export default class LongInteger extends PacketProperty<number> {
   }
 
   serialize() {
+    this.value = Math.floor(this.value);
     return [
       (this.value >> 24) & 255,
       (this.value >> 16) & 255,

@@ -9,6 +9,7 @@ export default class Integer extends PacketProperty<number> {
   }
 
   serialize() {
+    this.value = Math.floor(this.value);
     return [
       (this.value >> 8) & 255,
       this.value & 255
