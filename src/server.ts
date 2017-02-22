@@ -320,12 +320,13 @@ class Game {
     let p = new Player(null as any);
     p.id = 5;
 
-    this.fillArea(p, 100, 100, 50, 50);
-    this.fillArea(p, 200, 200, 50, 50);
+    this.fillArea(p, 10, 10, 10, 40);
+    this.fillArea(p, 20, 15, 10, 35);
+    this.fillArea(p, 25, 10,  5,  5);
 
-    console.log(this.playerIdAt(105, 105));
-    console.log(this.findPath(p, new Vector(100, 100), new Vector(149, 120)));
-    console.log(this.findPath(p, new Vector(100, 100), new Vector(200, 200)));
+    console.log(this.getAdjacentTiles(19 * MAP_SIZE + 10, p.id));
+
+    console.log(this.findPath(p, new Vector(10, 10), new Vector(25, 10)));
     */
   }
 
@@ -338,7 +339,12 @@ class Game {
       [ x - 1, y ],
       [ x + 1, y ],
       [ x, y - 1 ],
-      [ x, y + 1 ]
+      [ x, y + 1 ],
+
+      [ x - 1, y - 1 ],
+      [ x + 1, y - 1 ],
+      [ x + 1, y + 1 ],
+      [ x - 1, y + 1 ]
     ].filter(([ x, y ]) =>
       x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE
     );
@@ -397,6 +403,9 @@ class Game {
     while (openList.size > 0) {
       // @todo The sort is inefficient
       let tile = [ ...openList ].sort((a, b) => a.f - b.f)[0];
+      openList.delete(tile);
+      closedList.add(tile);
+
       if (tile.id === bId) {
         // we've found it, return the path
         let path: Vector[] = [];
@@ -407,6 +416,17 @@ class Game {
             ~~(searchTile.id / MAP_SIZE),
             searchTile.id % MAP_SIZE
           ));
+
+          if (path.length >= 2) {
+            if (path[0].x !== path[1].x && path[0].y !== path[1].y) {
+              // we did a diagonal turn, convert it
+              let first = path.shift()!;
+              path.unshift(new Vector(
+                first.x, path[0].y
+              ));
+              path.unshift(first);
+            }
+          }
 
           if (path.length >= 3) {
             let sameXDiff = path[1].x - path[0].x === path[2].x - path[1].x;
@@ -421,9 +441,6 @@ class Game {
 
         return path;
       }
-
-      openList.delete(tile);
-      closedList.add(tile);
 
       this.getAdjacentTiles(tile.id, player.id).forEach(adjTileId => {
         let g = tile.g + 1;
@@ -589,9 +606,12 @@ class Game {
     
     // we found a path - let's fill the area now
     console.log("We can fill some area!");
+    console.log("path", path);
+    console.log("playpos", player.position);
+    console.log("lastin", player.lastInsidePosition);
     
     let points = [
-      ...player.trail.map(vect => vect.clone().round()),
+      ...player.trail,
       ...path
     ];
     console.log(points);
@@ -665,9 +685,6 @@ class Game {
       let hasTrail = player.hasTrail;
       let isOutside = player.isOutside;
 
-      if (!isOutside)
-        player.lastInsidePosition = player.position.clone();
-
       if (hasTrail !== isOutside) {
         if (hasTrail) {
           this.tryToFillArea(player);
@@ -677,6 +694,9 @@ class Game {
         
         this.broadcastPlayerUpdate(player);
       }
+
+      if (!isOutside)
+        player.lastInsidePosition = player.position.clone();
 
       if (player.positionNeedsBroadcast)
         this.broadcastPlayerUpdate(player);
@@ -840,7 +860,7 @@ export class Server extends EventEmitter {
 
       let distanceSinceTurn = packet.position.value.distanceInDirection(player.position, player.direction);
       console.log(distanceSinceTurn);
-      
+
       if (distanceSinceTurn < -2)
         throw new Error("Turn in the future");
       
