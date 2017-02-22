@@ -52,6 +52,7 @@ class Player {
   public version: number;
 
   public position: Vector;
+  public lastInsidePosition: Vector;
   public lastPositionUpdate: Date;
   public direction: number = 0;
 
@@ -310,10 +311,155 @@ class Game {
         }
       });
     });
+
+    // testing pathfinding
+
+    /*
+    let p = new Player(null as any);
+    p.id = 5;
+
+    this.fillArea(p, 100, 100, 50, 50);
+    this.fillArea(p, 200, 200, 50, 50);
+
+    console.log(this.playerIdAt(105, 105));
+    console.log(this.findPath(p, new Vector(100, 100), new Vector(149, 120)));
+    console.log(this.findPath(p, new Vector(100, 100), new Vector(200, 200)));
+    */
+  }
+
+  protected getTileId(a: Vector) {
+    return Math.round(a.y) + Math.round(a.x) * MAP_SIZE;
+  }
+
+  protected getBlockNeighbors(x: number, y: number) {
+    return [
+      [ x - 1, y ],
+      [ x + 1, y ],
+      [ x, y - 1 ],
+      [ x, y + 1 ]
+    ].filter(([ x, y ]) =>
+      x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE
+    );
+  }
+
+  protected playerIdAt(x: number, y: number) {
+    return this.chunkForPosition(x, y).playerIdAt(x, y);
+  }
+
+  protected getAdjacentTiles(tile: number, playerId: number) {
+    let x = ~~(tile / MAP_SIZE);
+    let y = tile % MAP_SIZE;
+
+    return this.getBlockNeighbors(x, y)
+      .filter(([ x, y ]) =>
+        // we want blocks that border other areas
+        this.playerIdAt(x, y) === playerId && !this.getBlockNeighbors(x, y)
+          // check if this block is surrounded by blocks of playerId
+          .every(([ sx, sy ]) => this.playerIdAt(sx, sy) === playerId)
+      )
+      .map(([ x, y ]) => y + x * MAP_SIZE);
+  }
+
+  findPath(player: Player, a: Vector, b: Vector): Vector[] | null { // A* pathfinding
+    type TTileId = number;
+    interface ITile {
+      id: TTileId;
+      prev?: ITile;
+
+      f: number; // g + h
+      g: number;
+      h: number;
+    }
+
+    function tileDistance(a: TTileId, b: TTileId) {
+      let dx = ~~(b / MAP_SIZE) - ~~(a / MAP_SIZE);
+      let dy = (b % MAP_SIZE) - (a % MAP_SIZE);
+      return Math.abs(dx) + Math.abs(dy);
+    }
+
+    let tileMap = new Map<TTileId, ITile>();
+
+    let aId = this.getTileId(a);
+    let bId = this.getTileId(b);
+
+    let openList = new Set<ITile>();
+    let closedList = new Set<ITile>();
+
+    openList.add({
+      id: aId,
+      g: 0,
+      h: 0,
+      f: 0
+    })
+
+    while (openList.size > 0) {
+      // @todo The sort is inefficient
+      let tile = [ ...openList ].sort((a, b) => a.f - b.f)[0];
+      if (tile.id === bId) {
+        // we've found it, return the path
+        let path: Vector[] = [];
+
+        let searchTile: ITile | undefined = tile;
+        while (searchTile !== undefined) {
+          path.unshift(new Vector(
+            ~~(searchTile.id / MAP_SIZE),
+            searchTile.id % MAP_SIZE
+          ));
+
+          if (path.length >= 3) {
+            let sameXDiff = path[1].x - path[0].x === path[2].x - path[1].x;
+            let sameYDiff = path[1].y - path[0].y === path[2].y - path[1].y;
+
+            if (sameXDiff || sameYDiff)
+              path.splice(1, 1);
+          }
+
+          searchTile = searchTile.prev;
+        }
+
+        return path;
+      }
+
+      openList.delete(tile);
+      closedList.add(tile);
+
+      this.getAdjacentTiles(tile.id, player.id).forEach(adjTileId => {
+        let g = tile.g + 1;
+
+        if (!tileMap.has(adjTileId)) {
+          let h = tileDistance(adjTileId, bId);
+          tileMap.set(adjTileId, {
+            id: adjTileId,
+            prev: tile,
+            h, g,
+            f: g + h
+          });
+        }
+        
+        let adjTile = tileMap.get(adjTileId)!;
+        if (closedList.has(adjTile))
+          // ignore this tile
+          return;
+        
+        if (openList.has(adjTile)) {
+          let f = g + adjTile.h;
+          // check if this score is better
+          if (f < adjTile.f) {
+            adjTile.f = f;
+            adjTile.g = g;
+            adjTile.prev = tile;
+          }
+        } else
+          openList.add(adjTile);
+      });
+    }
+
+    return null;
   }
 
   fillArea(player: Player, x: number, y: number, width: number, height: number) {
-    // console.log(`large fillArea: ${x},${y};${width},${height}`);
+    console.log(`large fillArea: ${x},${y};${width},${height}`);
+    
     let cxMin = Math.floor(x / CHUNK_SIZE);
     let cxMax = Math.floor((x + width - 1) / CHUNK_SIZE);
     let cyMin = Math.floor(y / CHUNK_SIZE);
@@ -398,6 +544,107 @@ class Game {
     return this.chunks.get(id)!;
   }
 
+  protected tryToFillArea(player: Player) {
+    class Edge {
+      constructor(
+        public a: Vector,
+        public b: Vector
+      ) {
+      }
+
+      get x() {
+        return this.a.x;
+      }
+
+      includesY(y: number) {
+        let minY = Math.min(this.a.y, this.b.y);
+        let maxY = Math.max(this.a.y, this.b.y);
+        return minY <= y && maxY >= y;
+      }
+    }
+
+    class Rectangle {
+      constructor(
+        public x0: number,
+        public y0: number,
+        public x1: number,
+        public y1: number
+      ) {
+      }
+
+      get width() {
+        return this.x1 - this.x0;
+      }
+
+      get height() {
+        return this.y1 - this.y0;
+      }
+    }
+
+    let path = this.findPath(player, player.position, player.lastInsidePosition);
+    if (path === null)
+      return;
+    
+    // we found a path - let's fill the area now
+    console.log("We can fill some area!");
+    
+    let points = [
+      ...player.trail.map(vect => vect.clone().round()),
+      ...path
+    ];
+    console.log(points);
+    let yValuesSet = new Set<number>();
+    let edges: Edge[] = []; /** vertical edges */
+
+    [ ...points, points[0] ].reduce((lastPoint, point) => {
+      if (lastPoint.y !== point.y) {
+        edges.push(new Edge(lastPoint, point));
+        yValuesSet.add(lastPoint.y);
+      }
+
+      return point;
+    });
+
+    let yValues = [ ...yValuesSet ].sort((a, b) => a - b);
+
+    // start rasterization, using the even-odd winding rule
+    let lastRectangles: Rectangle[] = [];
+    let allRectangles: Rectangle[] = [];
+
+    yValues.reduce((lastY, y) => {
+      let currentRectangles: Rectangle[] = [];
+
+      // find edges that we run through
+      let lineEdges = edges
+        .filter(edge => edge.includesY((y + lastY) / 2))
+        .sort((a, b) => a.x - b.x);
+
+      while (lineEdges.length > 0) {
+        let x0 = lineEdges.shift()!.x;
+        let x1 = lineEdges.shift()!.x;
+
+        let rectangle = lastRectangles.find(rect => rect.x0 === x0 && rect.x1 === x1);
+        if (rectangle === undefined) {
+          // create a new rectangle for this
+          rectangle = new Rectangle(x0, lastY, x1, y);
+          allRectangles.push(rectangle);
+        } else {
+          // update existing rectangle
+          rectangle.y1 = y;
+        }
+
+        currentRectangles.push(rectangle);
+      }
+
+      lastRectangles = currentRectangles;
+      return y;
+    });
+
+    allRectangles.forEach(rect =>
+      this.fillArea(player, rect.x0, rect.y0, rect.width + 1, rect.height + 1)
+    );
+  }
+
   loop() {
     this.players.forEach(player => {
       // update player position
@@ -408,9 +655,12 @@ class Game {
       let hasTrail = player.hasTrail;
       let isOutside = player.isOutside;
 
+      if (!isOutside)
+        player.lastInsidePosition = player.position.clone();
+
       if (hasTrail !== isOutside) {
         if (hasTrail) {
-          console.log(`@todo fill-area`);
+          this.tryToFillArea(player);
           player.endTrail();
         } else
           player.startTrail();

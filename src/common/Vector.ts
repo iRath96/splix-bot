@@ -9,6 +9,12 @@ export default class Vector {
     return new Vector(this.x, this.y);
   }
 
+  round() {
+    this.x = Math.round(this.x);
+    this.y = Math.round(this.y);
+    return this;
+  }
+
   move(direction: number, count: number) {
     switch (direction) {
     case 0: this.x += count; break;
